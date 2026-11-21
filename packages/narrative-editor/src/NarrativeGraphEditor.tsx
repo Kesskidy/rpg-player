@@ -8,7 +8,7 @@ import {
   type Connection,
   type NodeChange,
 } from '@xyflow/react';
-import type { NarrativeGraph, NarrativeNodeType, RpgDatabase } from '@rpg-player/core-types';
+import type { AssetMeta, NarrativeGraph, NarrativeNodeType, RpgDatabase } from '@rpg-player/core-types';
 import {
   applyFlowConnection,
   createNarrativeNode,
@@ -20,12 +20,14 @@ import { NodeInspector } from './NodeInspector.js';
 export interface NarrativeGraphEditorProps {
   graph: NarrativeGraph;
   database: RpgDatabase;
+  availableAssets?: Record<string, AssetMeta>;
   onChange: (next: NarrativeGraph) => void;
 }
 
 export function NarrativeGraphEditor({
   graph,
   database,
+  availableAssets,
   onChange,
 }: NarrativeGraphEditorProps) {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(
@@ -125,6 +127,13 @@ export function NarrativeGraphEditor({
             </button>
             <button
               type="button"
+              onClick={() => handleAddNode('cinematic')}
+              className="rounded bg-purple-600/25 px-2.5 py-1 text-xs font-medium text-purple-200 ring-1 ring-purple-500/40 hover:bg-purple-600/45"
+            >
+              + Cinématique
+            </button>
+            <button
+              type="button"
               onClick={() => handleAddNode('end')}
               className="rounded bg-rose-600/25 px-2.5 py-1 text-xs font-medium text-rose-200 ring-1 ring-rose-500/40 hover:bg-rose-600/45"
             >
@@ -163,6 +172,7 @@ export function NarrativeGraphEditor({
           graph={graph}
           selectedNodeId={selectedNodeId}
           database={database}
+          availableAssets={availableAssets}
           onChangeGraph={onChange}
           onDeleteNode={handleDeleteNode}
         />

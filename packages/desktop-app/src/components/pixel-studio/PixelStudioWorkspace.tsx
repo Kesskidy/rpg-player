@@ -242,6 +242,18 @@ export function PixelStudioWorkspace({
     });
   }
 
+  function handleDownloadGif() {
+    const scale = doc.width <= 32 ? 4 : doc.width <= 64 ? 2 : 1;
+    const gifBytes = engine.exportGif({ scale, loop: true });
+    const gifCopy = new Uint8Array(gifBytes);
+    const safeId = slugifyId(assetId || assetName);
+    triggerDownload(new Blob([gifCopy], { type: 'image/gif' }), `${safeId}.gif`);
+    setFeedback({
+      kind: 'ok',
+      text: `Téléchargé : ${safeId}.gif (${doc.width * scale}×${doc.height * scale}px).`,
+    });
+  }
+
   function handleImportConvertedAsLayer(
     name: string,
     result: ImageToPixelArtResult,
@@ -408,13 +420,22 @@ export function PixelStudioWorkspace({
             {isSaving ? 'Sauvegarde...' : 'Sauvegarder & Exporter (PNG + AssetMeta)'}
           </button>
 
-          <button
-            type="button"
-            onClick={handleDownloadFiles}
-            className="w-full rounded-md border border-slate-700 bg-surface-800 px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:bg-surface-700"
-          >
-            Télécharger PNG + JSON
-          </button>
+          <div className="grid grid-cols-2 gap-1.5">
+            <button
+              type="button"
+              onClick={handleDownloadFiles}
+              className="rounded-md border border-slate-700 bg-surface-800 px-2.5 py-1.5 text-xs font-medium text-slate-200 transition hover:bg-surface-700"
+            >
+              PNG + JSON
+            </button>
+            <button
+              type="button"
+              onClick={handleDownloadGif}
+              className="rounded-md bg-emerald-600 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-500"
+            >
+              Télécharger GIF
+            </button>
+          </div>
 
           {feedback && (
             <p

@@ -41,6 +41,8 @@ export function VttSheetPanel({
 
   const sheet = effectiveId ? roomState.sheets[effectiveId] : null;
   const isGm = role === 'gm';
+  const dbTemplates = Object.values(database.characterSheets ?? {});
+  const [templateId, setTemplateId] = useState<string>(() => dbTemplates[0]?.id ?? '');
 
   if (!sheet) {
     return (
@@ -77,23 +79,75 @@ export function VttSheetPanel({
     onUpdateSheet(sheet.participantId, { inventory: nextInv });
   }
 
+  function handleApplyTemplate() {
+    if (!sheet || !templateId) return;
+    const tpl = database.characterSheets?.[templateId];
+    if (!tpl) return;
+    const attrsSummary = `FOR ${tpl.attributes.str} · DEX ${tpl.attributes.dex} · INT ${tpl.attributes.int} · CHA ${tpl.attributes.cha}`;
+    const noteText = [
+      `${tpl.characterClass} (Niv. ${tpl.level}) — ${attrsSummary}`,
+      tpl.bio,
+      tpl.notes,
+    ]
+      .filter((s) => s.trim().length > 0)
+      .join('\n');
+
+    onUpdateSheet(sheet.participantId, {
+      characterName: tpl.name,
+      hp: tpl.stats.maxHp,
+      maxHp: tpl.stats.maxHp,
+      mp: tpl.stats.maxMp,
+      maxMp: tpl.stats.maxMp,
+      atk: tpl.stats.atk,
+      def: tpl.stats.def,
+      gold: tpl.gold,
+      inventory: tpl.inventory.map((e) => ({ ...e })),
+      notes: noteText,
+    });
+  }
+
   return (
     <div className="flex flex-1 flex-col space-y-3 overflow-y-auto p-3 text-xs">
       {isGm && (
-        <label className="block text-[11px] text-amber-300">
-          Édition live MJ — Joueur ciblé
-          <select
-            value={effectiveId}
-            onChange={(e) => setSelectedId(e.target.value)}
-            className="mt-1 w-full rounded border border-amber-500/40 bg-surface-800 px-2 py-1.5 text-xs text-white"
-          >
-            {sheetIds.map((id) => (
-              <option key={id} value={id}>
-                {roomState.sheets[id]?.characterName ?? id}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="space-y-2">
+          <label className="block text-[11px] text-amber-300">
+            Édition live MJ — Joueur ciblé
+            <select
+              value={effectiveId}
+              onChange={(e) => setSelectedId(e.target.value)}
+              className="mt-1 w-full rounded border border-amber-500/40 bg-surface-800 px-2 py-1.5 text-xs text-white"
+            >
+              {sheetIds.map((id) => (
+                <option key={id} value={id}>
+                  {roomState.sheets[id]?.characterName ?? id}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {dbTemplates.length > 0 && (
+            <div className="flex gap-1">
+              <select
+                value={templateId || dbTemplates[0]?.id || ''}
+                onChange={(e) => setTemplateId(e.target.value)}
+                className="min-w-0 flex-1 rounded border border-indigo-500/40 bg-surface-800 px-1.5 py-1 text-[11px] text-white"
+              >
+                {dbTemplates.map((tpl) => (
+                  <option key={tpl.id} value={tpl.id}>
+                    Modèle : {tpl.name} ({tpl.characterClass})
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={handleApplyTemplate}
+                className="rounded bg-indigo-600 px-2 py-1 text-[11px] font-semibold text-white hover:bg-indigo-500"
+              >
+                Appliquer
+              </button>
+            </div>
+          )}
+        </div>
       )}
 
       <div className="rounded-lg border border-slate-800 bg-surface-950/60 p-3 space-y-2.5">

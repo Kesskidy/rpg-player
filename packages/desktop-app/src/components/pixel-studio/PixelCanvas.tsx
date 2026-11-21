@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import type { PixelPoint, PixelStudioEngine } from '@rpg-player/pixel-studio';
+import type { OnionSkinOptions, PixelPoint, PixelStudioEngine } from '@rpg-player/pixel-studio';
 
 interface PixelCanvasProps {
   engine: PixelStudioEngine;
   renderVersion: number;
   zoom: number;
   onZoomChange: (nextZoom: number) => void;
+  onionSkin?: OnionSkinOptions;
 }
 
 export function PixelCanvas({
@@ -13,6 +14,7 @@ export function PixelCanvas({
   renderVersion,
   zoom,
   onZoomChange,
+  onionSkin,
 }: PixelCanvasProps) {
   const artCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -73,11 +75,22 @@ export function PixelCanvas({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const rgba = engine.renderActiveFrame();
+    const rgba = onionSkin?.enabled
+      ? engine.renderActiveFrameWithOnionSkin(onionSkin)
+      : engine.renderActiveFrame();
     const imageData = ctx.createImageData(doc.width, doc.height);
     imageData.data.set(rgba);
     ctx.putImageData(imageData, 0, 0);
-  }, [engine, doc.width, doc.height, renderVersion]);
+  }, [
+    engine,
+    doc.width,
+    doc.height,
+    renderVersion,
+    onionSkin?.enabled,
+    onionSkin?.showPrevious,
+    onionSkin?.showNext,
+    onionSkin?.opacity,
+  ]);
 
   // Paint crisp 1px screen-space grid and brush preview overlay
   useEffect(() => {

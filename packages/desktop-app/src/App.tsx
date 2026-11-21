@@ -3,6 +3,7 @@ import type { ProjectManifest, ProjectStorageAdapter } from '@rpg-player/core-ty
 import { PIXEL_STUDIO_VERSION } from '@rpg-player/pixel-studio';
 import { RPG_ENGINE_VERSION } from '@rpg-player/rpg-engine';
 import { VTT_NETWORK_VERSION } from '@rpg-player/vtt-network';
+import { AnimationStudioWorkspace } from './components/animation-studio/AnimationStudioWorkspace';
 import { CreditsModal } from './components/CreditsModal';
 import { PixelStudioWorkspace } from './components/pixel-studio/PixelStudioWorkspace';
 import { RpgEngineHub } from './components/rpg-engine/RpgEngineHub';
@@ -11,7 +12,7 @@ import { createStorageAdapter } from './storage/adapter';
 import { loadDemoPackProject } from './storage/demo-loader';
 import { createProject, openProject } from './storage/project-service';
 
-type ModuleTab = 'pixel-studio' | 'rpg-engine' | 'vtt';
+type ModuleTab = 'pixel-studio' | 'animation-studio' | 'rpg-engine' | 'vtt';
 
 export function App() {
   const [storage, setStorage] = useState<ProjectStorageAdapter>(() => createStorageAdapter());
@@ -95,6 +96,17 @@ export function App() {
             </button>
             <button
               type="button"
+              onClick={() => setActiveTab('animation-studio')}
+              className={`rounded px-3 py-1.5 text-xs font-medium transition ${
+                activeTab === 'animation-studio'
+                  ? 'bg-cyan-600 text-white'
+                  : 'text-slate-300 hover:bg-surface-800'
+              }`}
+            >
+              2. Animation Studio
+            </button>
+            <button
+              type="button"
               onClick={() => setActiveTab('rpg-engine')}
               className={`rounded px-3 py-1.5 text-xs font-medium transition ${
                 activeTab === 'rpg-engine'
@@ -102,7 +114,7 @@ export function App() {
                   : 'text-slate-300 hover:bg-surface-800'
               }`}
             >
-              2. RPG Engine
+              3. RPG Engine
             </button>
             <button
               type="button"
@@ -113,7 +125,7 @@ export function App() {
                   : 'text-slate-300 hover:bg-surface-800'
               }`}
             >
-              3. VTT / Mode JDR
+              4. VTT / Mode JDR
             </button>
           </nav>
         </div>
@@ -185,6 +197,13 @@ export function App() {
             onProjectUpdated={setProject}
           />
         )}
+        {activeTab === 'animation-studio' && (
+          <AnimationStudioWorkspace
+            storage={storage}
+            project={project}
+            onProjectUpdated={setProject}
+          />
+        )}
         {activeTab === 'rpg-engine' && (
           <RpgEngineHub
             storage={storage}
@@ -197,7 +216,9 @@ export function App() {
       </main>
 
       <footer className="flex items-center justify-between border-t border-slate-800 bg-surface-900 px-4 py-1 text-[11px] text-slate-500">
-        <span>RPG Player Studio — Suite Complète (Pixel Studio · RPG Engine · VTT Multijoueur)</span>
+        <span>
+          RPG Player Studio — Suite Complète (Pixel Studio · Animation Studio · RPG Engine · VTT)
+        </span>
         <button
           type="button"
           onClick={() => setCreditsOpen(true)}

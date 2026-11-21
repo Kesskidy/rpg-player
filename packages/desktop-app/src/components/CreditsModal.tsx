@@ -43,14 +43,18 @@ export function CreditsModal({ open, onClose }: CreditsModalProps) {
         <dl className="mt-4 space-y-2 rounded-lg border border-slate-800 bg-surface-950/60 p-3.5 text-xs">
           <div className="flex justify-between">
             <dt className="text-slate-400">Module 1</dt>
-            <dd className="text-slate-200">Pixel Studio (Canvas 2D + PNG Headless)</dd>
+            <dd className="text-slate-200">Pixel Studio &amp; Image → Pixel Art</dd>
           </div>
           <div className="flex justify-between">
             <dt className="text-slate-400">Module 2</dt>
-            <dd className="text-slate-200">RPG Engine (PixiJS v8 · Twine · Combat)</dd>
+            <dd className="text-slate-200">Animation Studio (Timeline · Onion Skin · Markers)</dd>
           </div>
           <div className="flex justify-between">
             <dt className="text-slate-400">Module 3</dt>
+            <dd className="text-slate-200">RPG Engine (PixiJS · Twine · Fiches · Combat 3 Modes)</dd>
+          </div>
+          <div className="flex justify-between">
+            <dt className="text-slate-400">Module 4</dt>
             <dd className="text-slate-200">VTT / Mode JDR (WebSocket · MJ Admin · Fog)</dd>
           </div>
           <div className="flex justify-between">
