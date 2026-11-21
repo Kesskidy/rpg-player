@@ -1,0 +1,238 @@
+import {
+  NARRATIVE_SCHEMA_VERSION,
+  RPG_DATABASE_SCHEMA_VERSION,
+  type NarrativeGraph,
+  type RpgDatabase,
+} from '@rpg-player/core-types';
+
+export function createDefaultRpgDatabase(): RpgDatabase {
+  return {
+    schemaVersion: RPG_DATABASE_SCHEMA_VERSION,
+    hero: {
+      name: 'Chevalier',
+      stats: {
+        maxHp: 100,
+        maxMp: 30,
+        atk: 12,
+        def: 5,
+      },
+      skillIds: ['frappe_lourde', 'boule_feu', 'soin_mineur', 'egide'],
+      startingItems: [
+        { itemId: 'potion_soin', quantity: 2 },
+        { itemId: 'epee_fer', quantity: 1 },
+      ],
+      maxSlots: 20,
+      maxWeight: 50,
+    },
+    items: {
+      potion_soin: {
+        id: 'potion_soin',
+        name: 'Potion de soin',
+        description: 'Restaure 35 PV.',
+        category: 'consumable',
+        stackable: true,
+        weight: 0.5,
+        healHp: 35,
+      },
+      elixir_mana: {
+        id: 'elixir_mana',
+        name: 'Élixir de mana',
+        description: 'Restaure 20 PM.',
+        category: 'consumable',
+        stackable: true,
+        weight: 0.5,
+        healMp: 20,
+      },
+      epee_fer: {
+        id: 'epee_fer',
+        name: 'Épée en fer',
+        description: 'Une lame robuste (+6 ATK).',
+        category: 'equipment',
+        stackable: false,
+        weight: 4,
+        slot: 'weapon',
+        statBonus: { atk: 6 },
+      },
+      bouclier_chene: {
+        id: 'bouclier_chene',
+        name: 'Bouclier de chêne',
+        description: 'Offre une solide protection (+4 DEF, +10 PV).',
+        category: 'equipment',
+        stackable: false,
+        weight: 5,
+        slot: 'armor',
+        statBonus: { def: 4, maxHp: 10 },
+      },
+      cle_fer: {
+        id: 'cle_fer',
+        name: 'Clé en fer',
+        description: 'Ouvre la grille rouillée du donjon.',
+        category: 'quest',
+        stackable: false,
+        weight: 0.2,
+      },
+    },
+    skills: {
+      frappe_lourde: {
+        id: 'frappe_lourde',
+        name: 'Frappe lourde',
+        description: 'Attaque puissante qui perce la garde.',
+        mpCost: 6,
+        power: 18,
+      },
+      boule_feu: {
+        id: 'boule_feu',
+        name: 'Boule de feu',
+        description: 'Inflige des dégâts de feu et brûle pendant 2 tours.',
+        mpCost: 8,
+        power: 14,
+        statusEffect: { kind: 'burn', turns: 2, potency: 5 },
+      },
+      soin_mineur: {
+        id: 'soin_mineur',
+        name: 'Soin mineur',
+        description: 'Restaure 30 PV au lanceur.',
+        mpCost: 7,
+        power: 30,
+        isHeal: true,
+      },
+      egide: {
+        id: 'egide',
+        name: 'Égide',
+        description: 'Enveloppe le héros d’un bouclier pendant 2 tours.',
+        mpCost: 5,
+        power: 0,
+        statusEffect: { kind: 'shield', turns: 2, potency: 4 },
+      },
+      morsure_venin: {
+        id: 'morsure_venin',
+        name: 'Morsure venimeuse',
+        description: 'Empoisonne la cible pendant 2 tours.',
+        mpCost: 4,
+        power: 9,
+        statusEffect: { kind: 'poison', turns: 2, potency: 4 },
+      },
+    },
+    enemies: {
+      gobelin_eclaireur: {
+        id: 'gobelin_eclaireur',
+        name: 'Gobelin éclaireur',
+        spriteAssetId: null,
+        stats: {
+          maxHp: 48,
+          maxMp: 10,
+          atk: 11,
+          def: 3,
+        },
+        skillIds: ['frappe_lourde'],
+        rewardItemId: 'cle_fer',
+        rewardGold: 15,
+      },
+      slime_toxique: {
+        id: 'slime_toxique',
+        name: 'Slime toxique',
+        spriteAssetId: null,
+        stats: {
+          maxHp: 38,
+          maxMp: 16,
+          atk: 8,
+          def: 2,
+        },
+        skillIds: ['morsure_venin'],
+        rewardItemId: 'potion_soin',
+        rewardGold: 10,
+      },
+    },
+  };
+}
+
+export function createSampleNarrativeGraph(
+  id = 'garde_village',
+  name = 'Dialogue du Garde',
+): NarrativeGraph {
+  return {
+    schemaVersion: NARRATIVE_SCHEMA_VERSION,
+    id,
+    name,
+    entryNodeId: 'node_intro',
+    nodes: [
+      {
+        id: 'node_intro',
+        type: 'dialogue',
+        position: { x: 40, y: 120 },
+        title: 'Accueil du garde',
+        speaker: 'Garde du Village',
+        text: 'Halte, voyageur ! La porte du donjon est verrouillée. As-tu trouvé la clé en fer ?',
+        choices: [
+          {
+            id: 'ch_check_key',
+            label: 'Montrer la clé en fer',
+            nextNodeId: 'node_cond_key',
+          },
+          {
+            id: 'ch_fight',
+            label: 'S’entraîner au combat contre un gobelin',
+            nextNodeId: 'node_battle',
+          },
+          {
+            id: 'ch_leave',
+            label: 'Pas encore, je repasserai.',
+            nextNodeId: 'node_end',
+          },
+        ],
+      },
+      {
+        id: 'node_cond_key',
+        type: 'condition',
+        position: { x: 380, y: 40 },
+        title: 'Vérifier Clé en fer',
+        condition: 'has_item("cle_fer")',
+        trueNextNodeId: 'node_has_key',
+        falseNextNodeId: 'node_no_key',
+      },
+      {
+        id: 'node_has_key',
+        type: 'action',
+        position: { x: 690, y: 10 },
+        title: 'Récompense & Ouverture',
+        effects: [
+          { type: 'set_var', key: 'porte_ouverte', value: true },
+          { type: 'give_item', itemId: 'bouclier_chene', quantity: 1 },
+        ],
+        nextNodeId: 'node_success_text',
+      },
+      {
+        id: 'node_success_text',
+        type: 'dialogue',
+        position: { x: 980, y: 10 },
+        title: 'Passage ouvert',
+        speaker: 'Garde du Village',
+        text: 'Incroyable, tu as la clé ! Prends ce bouclier de chêne pour la suite de ta quête.',
+        nextNodeId: 'node_end',
+      },
+      {
+        id: 'node_no_key',
+        type: 'dialogue',
+        position: { x: 690, y: 150 },
+        title: 'Clé manquante',
+        speaker: 'Garde du Village',
+        text: 'Tu n’as pas la clé en fer ! Un gobelin éclaireur l’a probablement volée.',
+        nextNodeId: 'node_end',
+      },
+      {
+        id: 'node_battle',
+        type: 'action',
+        position: { x: 380, y: 240 },
+        title: 'Lancer combat Gobelin',
+        effects: [{ type: 'start_battle', enemyId: 'gobelin_eclaireur' }],
+        nextNodeId: 'node_end',
+      },
+      {
+        id: 'node_end',
+        type: 'end',
+        position: { x: 1040, y: 220 },
+        title: 'Fin',
+      },
+    ],
+  };
+}

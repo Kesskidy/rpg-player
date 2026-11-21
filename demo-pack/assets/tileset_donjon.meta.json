@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "id": "tileset_donjon",
+  "name": "Tileset Donjon (32x32)",
+  "type": "tileset",
+  "gridWidth": 32,
+  "gridHeight": 32,
+  "frameCount": 1,
+  "columns": 4,
+  "filePath": "assets/tileset_donjon.png",
+  "sourcePath": "assets/tileset_donjon.pxs.json",
+  "anchor": {
+    "x": 0,
+    "y": 0
+  },
+  "animations": {
+    "lave": {
+      "frames": [
+        2,
+        3
+      ],
+      "fps": 3,
+      "loop": true
+    },
+    "brasero": {
+      "frames": [
+        12,
+        13
+      ],
+      "fps": 5,
+      "loop": true
+    }
+  },
+  "hitboxes": [],
+  "tags": [
+    "tileset",
+    "donjon",
+    "dungeon"
+  ]
+}

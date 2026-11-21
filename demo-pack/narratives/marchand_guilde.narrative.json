@@ -1,0 +1,97 @@
+{
+  "schemaVersion": 1,
+  "id": "marchand_guilde",
+  "name": "Dialogue du Marchand",
+  "entryNodeId": "m_intro",
+  "nodes": [
+    {
+      "id": "m_intro",
+      "type": "dialogue",
+      "position": {
+        "x": 60,
+        "y": 100
+      },
+      "title": "Stand du Marchand",
+      "speaker": "Marchand Aubergiste",
+      "text": "Besoin de reprendre des forces avant le donjon ? Je peux te soigner ou t’offrir un élixir de mana !",
+      "choices": [
+        {
+          "id": "m_heal",
+          "label": "Me reposer (+100 PV / +35 PM)",
+          "nextNodeId": "m_do_heal"
+        },
+        {
+          "id": "m_elixir",
+          "label": "Prendre un Élixir de mana gratuit",
+          "condition": "!flag(\"elixir_recu\")",
+          "nextNodeId": "m_do_elixir"
+        },
+        {
+          "id": "m_leave",
+          "label": "Merci, à plus tard.",
+          "nextNodeId": "m_end"
+        }
+      ]
+    },
+    {
+      "id": "m_do_heal",
+      "type": "action",
+      "position": {
+        "x": 400,
+        "y": 40
+      },
+      "title": "Repos complet",
+      "effects": [
+        {
+          "type": "heal",
+          "hp": 100,
+          "mp": 35
+        }
+      ],
+      "nextNodeId": "m_done"
+    },
+    {
+      "id": "m_do_elixir",
+      "type": "action",
+      "position": {
+        "x": 400,
+        "y": 170
+      },
+      "title": "Donner Élixir",
+      "effects": [
+        {
+          "type": "set_var",
+          "key": "elixir_recu",
+          "value": true
+        },
+        {
+          "type": "give_item",
+          "itemId": "elixir_mana",
+          "quantity": 1
+        }
+      ],
+      "nextNodeId": "m_done"
+    },
+    {
+      "id": "m_done",
+      "type": "dialogue",
+      "position": {
+        "x": 700,
+        "y": 100
+      },
+      "title": "Bonne route",
+      "speaker": "Marchand Aubergiste",
+      "text": "Et voilà ! Bonne chance dans les profondeurs du donjon.",
+      "nextNodeId": "m_end"
+    },
+    {
+      "id": "m_end",
+      "type": "end",
+      "position": {
+        "x": 980,
+        "y": 100
+      },
+      "title": "Fin"
+    }
+  ]
+}

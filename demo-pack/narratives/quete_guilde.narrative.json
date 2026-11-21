@@ -1,0 +1,116 @@
+{
+  "schemaVersion": 1,
+  "id": "quete_guilde",
+  "name": "Quête du Maître de Guilde",
+  "entryNodeId": "n_check_done",
+  "nodes": [
+    {
+      "id": "n_check_done",
+      "type": "condition",
+      "position": {
+        "x": 40,
+        "y": 120
+      },
+      "title": "A vaincu le Golem ?",
+      "condition": "has_item(\"coeur_golem\")",
+      "trueNextNodeId": "n_victory",
+      "falseNextNodeId": "n_intro"
+    },
+    {
+      "id": "n_intro",
+      "type": "dialogue",
+      "position": {
+        "x": 330,
+        "y": 180
+      },
+      "title": "Accueil du Maître",
+      "speaker": "Maître de Guilde",
+      "text": "Bienvenue à la Guilde, jeune aventurier ! Un Golem de Pierre s’est réveillé dans le donjon derrière la porte nord. Acceptes-tu cette quête ?",
+      "choices": [
+        {
+          "id": "ch_accept",
+          "label": "J’accepte la quête !",
+          "condition": "!flag(\"quete_golem_acceptee\")",
+          "nextNodeId": "n_give_potion"
+        },
+        {
+          "id": "ch_remind",
+          "label": "Où se trouve l’entrée du donjon ?",
+          "nextNodeId": "n_hint"
+        },
+        {
+          "id": "ch_bye",
+          "label": "Je vais me préparer d’abord.",
+          "nextNodeId": "n_end"
+        }
+      ]
+    },
+    {
+      "id": "n_give_potion",
+      "type": "action",
+      "position": {
+        "x": 670,
+        "y": 80
+      },
+      "title": "Donner Potion + Activer Quête",
+      "effects": [
+        {
+          "type": "set_var",
+          "key": "quete_golem_acceptee",
+          "value": true
+        },
+        {
+          "type": "give_item",
+          "itemId": "potion_soin",
+          "quantity": 1
+        }
+      ],
+      "nextNodeId": "n_accepted_text"
+    },
+    {
+      "id": "n_accepted_text",
+      "type": "dialogue",
+      "position": {
+        "x": 960,
+        "y": 80
+      },
+      "title": "Quête acceptée",
+      "speaker": "Maître de Guilde",
+      "text": "Brave décision ! Prends cette Potion de soin (ajoutée à ton inventaire, touche I). Franchis la porte en bois au nord pour descendre dans le donjon.",
+      "nextNodeId": "n_end"
+    },
+    {
+      "id": "n_hint",
+      "type": "dialogue",
+      "position": {
+        "x": 670,
+        "y": 230
+      },
+      "title": "Indication porte",
+      "speaker": "Maître de Guilde",
+      "text": "La porte du donjon est juste sur le mur nord à droite du comptoir. Pense aussi à équiper ton épée dans l’inventaire (touche I) !",
+      "nextNodeId": "n_end"
+    },
+    {
+      "id": "n_victory",
+      "type": "dialogue",
+      "position": {
+        "x": 330,
+        "y": 10
+      },
+      "title": "Triomphe du Héros",
+      "speaker": "Maître de Guilde",
+      "text": "Par les anciens ! Tu as rapporté le Cœur Runique du Golem de Pierre ! Toute la guilde célèbre ton exploit !",
+      "nextNodeId": "n_end"
+    },
+    {
+      "id": "n_end",
+      "type": "end",
+      "position": {
+        "x": 1260,
+        "y": 180
+      },
+      "title": "Fin"
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "id": "tileset_guilde",
+  "name": "Tileset Guilde (32x32)",
+  "type": "tileset",
+  "gridWidth": 32,
+  "gridHeight": 32,
+  "frameCount": 1,
+  "columns": 4,
+  "filePath": "assets/tileset_guilde.png",
+  "sourcePath": "assets/tileset_guilde.pxs.json",
+  "anchor": {
+    "x": 0,
+    "y": 0
+  },
+  "animations": {
+    "torche": {
+      "frames": [
+        14,
+        15
+      ],
+      "fps": 5,
+      "loop": true
+    }
+  },
+  "hitboxes": [],
+  "tags": [
+    "tileset",
+    "guilde",
+    "interior"
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "name": "@rpg-player/desktop-app",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build:electron": "tsc -p tsconfig.electron.json",
+    "build:web": "vite build",
+    "build": "npm run build:electron && npm run build:web",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.electron.json --noEmit",
+    "electron:start": "npm run build:electron && electron ."
+  },
+  "dependencies": {
+    "@rpg-player/core-types": "*",
+    "@rpg-player/narrative-editor": "*",
+    "@rpg-player/pixel-studio": "*",
+    "@rpg-player/rpg-engine": "*",
+    "@rpg-player/vtt-network": "*",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.4",
+    "@types/react": "^19.0.6",
+    "@types/react-dom": "^19.0.4",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "electron": "^34.2.0",
+    "postcss": "^8.5.2",
+    "tailwindcss": "^3.4.17",
+    "vite": "^6.1.1"
+  }
+}

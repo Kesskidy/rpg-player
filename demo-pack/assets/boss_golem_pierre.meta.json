@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "id": "boss_golem_pierre",
+  "name": "Boss Golem de Pierre",
+  "type": "sprite",
+  "gridWidth": 64,
+  "gridHeight": 64,
+  "frameCount": 2,
+  "columns": 2,
+  "filePath": "assets/boss_golem_pierre.png",
+  "sourcePath": "assets/boss_golem_pierre.pxs.json",
+  "anchor": {
+    "x": 32,
+    "y": 64
+  },
+  "defaultCollider": {
+    "offsetX": -24,
+    "offsetY": -32,
+    "width": 48,
+    "height": 32
+  },
+  "animations": {
+    "idle": {
+      "frames": [
+        0,
+        1
+      ],
+      "fps": 2,
+      "loop": true
+    }
+  },
+  "hitboxes": [
+    {
+      "name": "feet",
+      "x": 8,
+      "y": 32,
+      "width": 48,
+      "height": 32
+    }
+  ],
+  "tags": [
+    "monster",
+    "boss",
+    "large"
+  ]
+}

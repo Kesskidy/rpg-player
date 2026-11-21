@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+dist-electron/
+scripts/demo-pack/dist/
+release/
+*.tsbuildinfo
+
+# Test & coverage
+coverage/
+
+# Vite / caches
+.vite/
+.cache/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Docs
+docs/
+
+# OS
+.DS_Store
+Thumbs.db

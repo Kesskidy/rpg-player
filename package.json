@@ -1,0 +1,22 @@
+{
+  "name": "rpg-player-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build:core": "npm run build -w @rpg-player/core-types && npm run build -w @rpg-player/pixel-studio && npm run build -w @rpg-player/rpg-engine && npm run build -w @rpg-player/narrative-editor && npm run build -w @rpg-player/vtt-network",
+    "build": "npm run build:core && npm run build -w @rpg-player/desktop-app",
+    "typecheck": "npm run build:core && npm run typecheck -w @rpg-player/core-types && npm run typecheck -w @rpg-player/pixel-studio && npm run typecheck -w @rpg-player/rpg-engine && npm run typecheck -w @rpg-player/narrative-editor && npm run typecheck -w @rpg-player/vtt-network && npm run typecheck -w @rpg-player/desktop-app",
+    "dev": "npm run build:core && npm run dev -w @rpg-player/desktop-app",
+    "vtt:server": "npm run build -w @rpg-player/core-types && npm run build -w @rpg-player/vtt-network && npm run start -w @rpg-player/vtt-network",
+    "demo:generate": "npm run build:core && tsc -p scripts/demo-pack/tsconfig.json && node scripts/demo-pack/dist/generate.js",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5"
+  }
+}

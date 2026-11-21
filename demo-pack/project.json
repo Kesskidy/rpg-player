@@ -1,0 +1,521 @@
+{
+  "schemaVersion": 1,
+  "id": "proj_demo_pack_rpg",
+  "name": "Starter Pack — Guilde & Donjon",
+  "createdAt": "2026-11-21T00:09:23.368Z",
+  "updatedAt": "2026-11-21T00:09:23.368Z",
+  "defaultTileSize": 32,
+  "assets": {
+    "tileset_guilde": {
+      "schemaVersion": 1,
+      "id": "tileset_guilde",
+      "name": "Tileset Guilde (32x32)",
+      "type": "tileset",
+      "gridWidth": 32,
+      "gridHeight": 32,
+      "frameCount": 1,
+      "columns": 4,
+      "filePath": "assets/tileset_guilde.png",
+      "sourcePath": "assets/tileset_guilde.pxs.json",
+      "anchor": {
+        "x": 0,
+        "y": 0
+      },
+      "animations": {
+        "torche": {
+          "frames": [
+            14,
+            15
+          ],
+          "fps": 5,
+          "loop": true
+        }
+      },
+      "hitboxes": [],
+      "tags": [
+        "tileset",
+        "guilde",
+        "interior"
+      ]
+    },
+    "tileset_donjon": {
+      "schemaVersion": 1,
+      "id": "tileset_donjon",
+      "name": "Tileset Donjon (32x32)",
+      "type": "tileset",
+      "gridWidth": 32,
+      "gridHeight": 32,
+      "frameCount": 1,
+      "columns": 4,
+      "filePath": "assets/tileset_donjon.png",
+      "sourcePath": "assets/tileset_donjon.pxs.json",
+      "anchor": {
+        "x": 0,
+        "y": 0
+      },
+      "animations": {
+        "lave": {
+          "frames": [
+            2,
+            3
+          ],
+          "fps": 3,
+          "loop": true
+        },
+        "brasero": {
+          "frames": [
+            12,
+            13
+          ],
+          "fps": 5,
+          "loop": true
+        }
+      },
+      "hitboxes": [],
+      "tags": [
+        "tileset",
+        "donjon",
+        "dungeon"
+      ]
+    },
+    "hero_aventurier": {
+      "schemaVersion": 1,
+      "id": "hero_aventurier",
+      "name": "Héros Aventurier",
+      "type": "sprite",
+      "gridWidth": 32,
+      "gridHeight": 48,
+      "frameCount": 6,
+      "columns": 6,
+      "filePath": "assets/hero_aventurier.png",
+      "sourcePath": "assets/hero_aventurier.pxs.json",
+      "anchor": {
+        "x": 16,
+        "y": 48
+      },
+      "defaultCollider": {
+        "offsetX": -16,
+        "offsetY": -16,
+        "width": 32,
+        "height": 16
+      },
+      "animations": {
+        "idle": {
+          "frames": [
+            0,
+            1
+          ],
+          "fps": 3,
+          "loop": true
+        },
+        "walk": {
+          "frames": [
+            2,
+            3,
+            4,
+            5
+          ],
+          "fps": 8,
+          "loop": true
+        }
+      },
+      "hitboxes": [
+        {
+          "name": "feet",
+          "x": 0,
+          "y": 32,
+          "width": 32,
+          "height": 16
+        }
+      ],
+      "tags": [
+        "hero",
+        "playable",
+        "humanoid"
+      ]
+    },
+    "pnj_maitre_guilde": {
+      "schemaVersion": 1,
+      "id": "pnj_maitre_guilde",
+      "name": "Maître de Guilde",
+      "type": "sprite",
+      "gridWidth": 32,
+      "gridHeight": 48,
+      "frameCount": 6,
+      "columns": 6,
+      "filePath": "assets/pnj_maitre_guilde.png",
+      "sourcePath": "assets/pnj_maitre_guilde.pxs.json",
+      "anchor": {
+        "x": 16,
+        "y": 48
+      },
+      "defaultCollider": {
+        "offsetX": -16,
+        "offsetY": -16,
+        "width": 32,
+        "height": 16
+      },
+      "animations": {
+        "idle": {
+          "frames": [
+            0,
+            1
+          ],
+          "fps": 3,
+          "loop": true
+        },
+        "walk": {
+          "frames": [
+            2,
+            3,
+            4,
+            5
+          ],
+          "fps": 8,
+          "loop": true
+        }
+      },
+      "hitboxes": [
+        {
+          "name": "feet",
+          "x": 0,
+          "y": 32,
+          "width": 32,
+          "height": 16
+        }
+      ],
+      "tags": [
+        "npc",
+        "guilde",
+        "quest"
+      ]
+    },
+    "pnj_marchand": {
+      "schemaVersion": 1,
+      "id": "pnj_marchand",
+      "name": "Marchand Aubergiste",
+      "type": "sprite",
+      "gridWidth": 32,
+      "gridHeight": 48,
+      "frameCount": 6,
+      "columns": 6,
+      "filePath": "assets/pnj_marchand.png",
+      "sourcePath": "assets/pnj_marchand.pxs.json",
+      "anchor": {
+        "x": 16,
+        "y": 48
+      },
+      "defaultCollider": {
+        "offsetX": -16,
+        "offsetY": -16,
+        "width": 32,
+        "height": 16
+      },
+      "animations": {
+        "idle": {
+          "frames": [
+            0,
+            1
+          ],
+          "fps": 3,
+          "loop": true
+        },
+        "walk": {
+          "frames": [
+            2,
+            3,
+            4,
+            5
+          ],
+          "fps": 8,
+          "loop": true
+        }
+      },
+      "hitboxes": [
+        {
+          "name": "feet",
+          "x": 0,
+          "y": 32,
+          "width": 32,
+          "height": 16
+        }
+      ],
+      "tags": [
+        "npc",
+        "merchant"
+      ]
+    },
+    "pnj_garde": {
+      "schemaVersion": 1,
+      "id": "pnj_garde",
+      "name": "Garde en Armure",
+      "type": "sprite",
+      "gridWidth": 32,
+      "gridHeight": 48,
+      "frameCount": 6,
+      "columns": 6,
+      "filePath": "assets/pnj_garde.png",
+      "sourcePath": "assets/pnj_garde.pxs.json",
+      "anchor": {
+        "x": 16,
+        "y": 48
+      },
+      "defaultCollider": {
+        "offsetX": -16,
+        "offsetY": -16,
+        "width": 32,
+        "height": 16
+      },
+      "animations": {
+        "idle": {
+          "frames": [
+            0,
+            1
+          ],
+          "fps": 3,
+          "loop": true
+        },
+        "walk": {
+          "frames": [
+            2,
+            3,
+            4,
+            5
+          ],
+          "fps": 8,
+          "loop": true
+        }
+      },
+      "hitboxes": [
+        {
+          "name": "feet",
+          "x": 0,
+          "y": 32,
+          "width": 32,
+          "height": 16
+        }
+      ],
+      "tags": [
+        "npc",
+        "guard"
+      ]
+    },
+    "monstre_slime": {
+      "schemaVersion": 1,
+      "id": "monstre_slime",
+      "name": "Slime Émeraude",
+      "type": "sprite",
+      "gridWidth": 32,
+      "gridHeight": 32,
+      "frameCount": 2,
+      "columns": 2,
+      "filePath": "assets/monstre_slime.png",
+      "sourcePath": "assets/monstre_slime.pxs.json",
+      "anchor": {
+        "x": 16,
+        "y": 32
+      },
+      "defaultCollider": {
+        "offsetX": -12,
+        "offsetY": -14,
+        "width": 24,
+        "height": 14
+      },
+      "animations": {
+        "idle": {
+          "frames": [
+            0,
+            1
+          ],
+          "fps": 4,
+          "loop": true
+        }
+      },
+      "hitboxes": [
+        {
+          "name": "feet",
+          "x": 4,
+          "y": 18,
+          "width": 24,
+          "height": 14
+        }
+      ],
+      "tags": [
+        "monster",
+        "slime"
+      ]
+    },
+    "monstre_gobelin": {
+      "schemaVersion": 1,
+      "id": "monstre_gobelin",
+      "name": "Gobelin Pillard",
+      "type": "sprite",
+      "gridWidth": 32,
+      "gridHeight": 32,
+      "frameCount": 2,
+      "columns": 2,
+      "filePath": "assets/monstre_gobelin.png",
+      "sourcePath": "assets/monstre_gobelin.pxs.json",
+      "anchor": {
+        "x": 16,
+        "y": 32
+      },
+      "defaultCollider": {
+        "offsetX": -12,
+        "offsetY": -14,
+        "width": 24,
+        "height": 14
+      },
+      "animations": {
+        "idle": {
+          "frames": [
+            0,
+            1
+          ],
+          "fps": 4,
+          "loop": true
+        }
+      },
+      "hitboxes": [
+        {
+          "name": "feet",
+          "x": 4,
+          "y": 18,
+          "width": 24,
+          "height": 14
+        }
+      ],
+      "tags": [
+        "monster",
+        "goblin"
+      ]
+    },
+    "monstre_squelette": {
+      "schemaVersion": 1,
+      "id": "monstre_squelette",
+      "name": "Squelette Gardien",
+      "type": "sprite",
+      "gridWidth": 32,
+      "gridHeight": 48,
+      "frameCount": 2,
+      "columns": 2,
+      "filePath": "assets/monstre_squelette.png",
+      "sourcePath": "assets/monstre_squelette.pxs.json",
+      "anchor": {
+        "x": 16,
+        "y": 48
+      },
+      "defaultCollider": {
+        "offsetX": -16,
+        "offsetY": -16,
+        "width": 32,
+        "height": 16
+      },
+      "animations": {
+        "idle": {
+          "frames": [
+            0,
+            1
+          ],
+          "fps": 3,
+          "loop": true
+        }
+      },
+      "hitboxes": [
+        {
+          "name": "feet",
+          "x": 0,
+          "y": 32,
+          "width": 32,
+          "height": 16
+        }
+      ],
+      "tags": [
+        "monster",
+        "undead"
+      ]
+    },
+    "boss_golem_pierre": {
+      "schemaVersion": 1,
+      "id": "boss_golem_pierre",
+      "name": "Boss Golem de Pierre",
+      "type": "sprite",
+      "gridWidth": 64,
+      "gridHeight": 64,
+      "frameCount": 2,
+      "columns": 2,
+      "filePath": "assets/boss_golem_pierre.png",
+      "sourcePath": "assets/boss_golem_pierre.pxs.json",
+      "anchor": {
+        "x": 32,
+        "y": 64
+      },
+      "defaultCollider": {
+        "offsetX": -24,
+        "offsetY": -32,
+        "width": 48,
+        "height": 32
+      },
+      "animations": {
+        "idle": {
+          "frames": [
+            0,
+            1
+          ],
+          "fps": 2,
+          "loop": true
+        }
+      },
+      "hitboxes": [
+        {
+          "name": "feet",
+          "x": 8,
+          "y": 32,
+          "width": 48,
+          "height": 32
+        }
+      ],
+      "tags": [
+        "monster",
+        "boss",
+        "large"
+      ]
+    }
+  },
+  "maps": {
+    "map_guilde": {
+      "id": "map_guilde",
+      "name": "Guilde des Aventuriers",
+      "width": 16,
+      "height": 12,
+      "tileSize": 32,
+      "filePath": "maps/map_guilde.map.json"
+    },
+    "map_donjon": {
+      "id": "map_donjon",
+      "name": "Donjon du Golem",
+      "width": 22,
+      "height": 14,
+      "tileSize": 32,
+      "filePath": "maps/map_donjon.map.json"
+    }
+  },
+  "narratives": {
+    "quete_guilde": {
+      "id": "quete_guilde",
+      "name": "Quête du Maître de Guilde",
+      "filePath": "narratives/quete_guilde.narrative.json"
+    },
+    "marchand_guilde": {
+      "id": "marchand_guilde",
+      "name": "Dialogue du Marchand",
+      "filePath": "narratives/marchand_guilde.narrative.json"
+    },
+    "coffre_donjon": {
+      "id": "coffre_donjon",
+      "name": "Coffre du Donjon",
+      "filePath": "narratives/coffre_donjon.narrative.json"
+    }
+  },
+  "databasePath": "database/rpg.db.json"
+}

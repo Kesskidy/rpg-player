@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "id": "coffre_donjon",
+  "name": "Coffre du Donjon",
+  "entryNodeId": "c_check",
+  "nodes": [
+    {
+      "id": "c_check",
+      "type": "condition",
+      "position": {
+        "x": 40,
+        "y": 100
+      },
+      "title": "Déjà ouvert ?",
+      "condition": "flag(\"coffre_donjon_ouvert\")",
+      "trueNextNodeId": "c_empty",
+      "falseNextNodeId": "c_open"
+    },
+    {
+      "id": "c_open",
+      "type": "action",
+      "position": {
+        "x": 340,
+        "y": 160
+      },
+      "title": "Butin du coffre",
+      "effects": [
+        {
+          "type": "set_var",
+          "key": "coffre_donjon_ouvert",
+          "value": true
+        },
+        {
+          "type": "give_item",
+          "itemId": "bouclier_chene",
+          "quantity": 1
+        },
+        {
+          "type": "give_item",
+          "itemId": "potion_soin",
+          "quantity": 1
+        }
+      ],
+      "nextNodeId": "c_found"
+    },
+    {
+      "id": "c_found",
+      "type": "dialogue",
+      "position": {
+        "x": 650,
+        "y": 160
+      },
+      "title": "Trésor trouvé !",
+      "speaker": "Coffre au Trésor",
+      "text": "Vous ouvrez le coffre : vous trouvez un Bouclier de la Guilde (+5 DEF, +15 PV) et une Potion de soin ! Équipez-le dans votre inventaire (touche I).",
+      "nextNodeId": "c_end"
+    },
+    {
+      "id": "c_empty",
+      "type": "dialogue",
+      "position": {
+        "x": 340,
+        "y": 20
+      },
+      "title": "Coffre vide",
+      "speaker": "Coffre au Trésor",
+      "text": "Le coffre est désormais vide.",
+      "nextNodeId": "c_end"
+    },
+    {
+      "id": "c_end",
+      "type": "end",
+      "position": {
+        "x": 940,
+        "y": 100
+      },
+      "title": "Fin"
+    }
+  ]
+}

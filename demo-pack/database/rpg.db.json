@@ -1,0 +1,209 @@
+{
+  "schemaVersion": 1,
+  "hero": {
+    "name": "Aventurier",
+    "stats": {
+      "maxHp": 110,
+      "maxMp": 35,
+      "atk": 14,
+      "def": 6
+    },
+    "skillIds": [
+      "frappe_lourde",
+      "boule_feu",
+      "soin_mineur",
+      "egide"
+    ],
+    "startingItems": [
+      {
+        "itemId": "potion_soin",
+        "quantity": 2
+      },
+      {
+        "itemId": "epee_fer",
+        "quantity": 1
+      }
+    ],
+    "maxSlots": 20,
+    "maxWeight": 50
+  },
+  "items": {
+    "potion_soin": {
+      "id": "potion_soin",
+      "name": "Potion de soin",
+      "description": "Restaure 40 PV.",
+      "category": "consumable",
+      "stackable": true,
+      "weight": 0.5,
+      "healHp": 40
+    },
+    "elixir_mana": {
+      "id": "elixir_mana",
+      "name": "Élixir de mana",
+      "description": "Restaure 25 PM.",
+      "category": "consumable",
+      "stackable": true,
+      "weight": 0.5,
+      "healMp": 25
+    },
+    "epee_fer": {
+      "id": "epee_fer",
+      "name": "Épée en fer",
+      "description": "Lame d’aventurier (+6 ATK).",
+      "category": "equipment",
+      "stackable": false,
+      "weight": 4,
+      "slot": "weapon",
+      "statBonus": {
+        "atk": 6
+      }
+    },
+    "bouclier_chene": {
+      "id": "bouclier_chene",
+      "name": "Bouclier de la Guilde",
+      "description": "Bouclier renforcé (+5 DEF, +15 PV).",
+      "category": "equipment",
+      "stackable": false,
+      "weight": 5,
+      "slot": "armor",
+      "statBonus": {
+        "def": 5,
+        "maxHp": 15
+      }
+    },
+    "coeur_golem": {
+      "id": "coeur_golem",
+      "name": "Cœur Runique du Golem",
+      "description": "Preuve de victoire contre le Boss Golem de Pierre.",
+      "category": "quest",
+      "stackable": false,
+      "weight": 1.5
+    }
+  },
+  "skills": {
+    "frappe_lourde": {
+      "id": "frappe_lourde",
+      "name": "Frappe lourde",
+      "description": "Un coup puissant qui brise la garde.",
+      "mpCost": 6,
+      "power": 20
+    },
+    "boule_feu": {
+      "id": "boule_feu",
+      "name": "Boule de feu",
+      "description": "Inflige des dégâts de feu et brûle pendant 2 tours.",
+      "mpCost": 8,
+      "power": 16,
+      "statusEffect": {
+        "kind": "burn",
+        "turns": 2,
+        "potency": 6
+      }
+    },
+    "soin_mineur": {
+      "id": "soin_mineur",
+      "name": "Soin mineur",
+      "description": "Restaure 35 PV.",
+      "mpCost": 7,
+      "power": 35,
+      "isHeal": true
+    },
+    "egide": {
+      "id": "egide",
+      "name": "Égide",
+      "description": "Bouclier protecteur pendant 2 tours.",
+      "mpCost": 5,
+      "power": 0,
+      "statusEffect": {
+        "kind": "shield",
+        "turns": 2,
+        "potency": 5
+      }
+    },
+    "jet_acide": {
+      "id": "jet_acide",
+      "name": "Jet acide",
+      "description": "Empoisonne la cible pendant 2 tours.",
+      "mpCost": 4,
+      "power": 9,
+      "statusEffect": {
+        "kind": "poison",
+        "turns": 2,
+        "potency": 4
+      }
+    },
+    "seisme_roche": {
+      "id": "seisme_roche",
+      "name": "Séisme de Pierre",
+      "description": "Onde de choc dévastatrice du Golem.",
+      "mpCost": 8,
+      "power": 18
+    }
+  },
+  "enemies": {
+    "monstre_slime": {
+      "id": "monstre_slime",
+      "name": "Slime Émeraude",
+      "spriteAssetId": "monstre_slime",
+      "stats": {
+        "maxHp": 34,
+        "maxMp": 12,
+        "atk": 8,
+        "def": 2
+      },
+      "skillIds": [
+        "jet_acide"
+      ],
+      "rewardItemId": "potion_soin",
+      "rewardGold": 10
+    },
+    "monstre_gobelin": {
+      "id": "monstre_gobelin",
+      "name": "Gobelin Pillard",
+      "spriteAssetId": "monstre_gobelin",
+      "stats": {
+        "maxHp": 46,
+        "maxMp": 10,
+        "atk": 12,
+        "def": 3
+      },
+      "skillIds": [
+        "frappe_lourde"
+      ],
+      "rewardItemId": "elixir_mana",
+      "rewardGold": 18
+    },
+    "monstre_squelette": {
+      "id": "monstre_squelette",
+      "name": "Squelette Gardien",
+      "spriteAssetId": "monstre_squelette",
+      "stats": {
+        "maxHp": 58,
+        "maxMp": 12,
+        "atk": 14,
+        "def": 5
+      },
+      "skillIds": [
+        "frappe_lourde"
+      ],
+      "rewardItemId": "potion_soin",
+      "rewardGold": 25
+    },
+    "boss_golem_pierre": {
+      "id": "boss_golem_pierre",
+      "name": "Boss Golem de Pierre",
+      "spriteAssetId": "boss_golem_pierre",
+      "stats": {
+        "maxHp": 115,
+        "maxMp": 24,
+        "atk": 18,
+        "def": 8
+      },
+      "skillIds": [
+        "seisme_roche"
+      ],
+      "rewardItemId": "coeur_golem",
+      "rewardGold": 100
+    }
+  }
+}

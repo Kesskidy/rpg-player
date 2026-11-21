@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "id": "monstre_slime",
+  "name": "Slime Émeraude",
+  "type": "sprite",
+  "gridWidth": 32,
+  "gridHeight": 32,
+  "frameCount": 2,
+  "columns": 2,
+  "filePath": "assets/monstre_slime.png",
+  "sourcePath": "assets/monstre_slime.pxs.json",
+  "anchor": {
+    "x": 16,
+    "y": 32
+  },
+  "defaultCollider": {
+    "offsetX": -12,
+    "offsetY": -14,
+    "width": 24,
+    "height": 14
+  },
+  "animations": {
+    "idle": {
+      "frames": [
+        0,
+        1
+      ],
+      "fps": 4,
+      "loop": true
+    }
+  },
+  "hitboxes": [
+    {
+      "name": "feet",
+      "x": 4,
+      "y": 18,
+      "width": 24,
+      "height": 14
+    }
+  ],
+  "tags": [
+    "monster",
+    "slime"
+  ]
+}
