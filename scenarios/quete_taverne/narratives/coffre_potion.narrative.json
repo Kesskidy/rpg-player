@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "id": "coffre_potion",
+  "name": "Coffre du Couloir",
+  "entryNodeId": "c_check",
+  "nodes": [
+    {
+      "id": "c_check",
+      "type": "condition",
+      "position": {
+        "x": 40,
+        "y": 120
+      },
+      "title": "Coffre déjà ouvert ?",
+      "condition": "flag(\"coffre_donjon_ouvert\")",
+      "trueNextNodeId": "c_empty",
+      "falseNextNodeId": "c_loot"
+    },
+    {
+      "id": "c_loot",
+      "type": "action",
+      "position": {
+        "x": 340,
+        "y": 180
+      },
+      "title": "Donner Potion de soin",
+      "effects": [
+        {
+          "type": "set_var",
+          "key": "coffre_donjon_ouvert",
+          "value": true
+        },
+        {
+          "type": "give_item",
+          "itemId": "potion_soin",
+          "quantity": 1
+        }
+      ],
+      "nextNodeId": "c_found"
+    },
+    {
+      "id": "c_found",
+      "type": "dialogue",
+      "position": {
+        "x": 640,
+        "y": 180
+      },
+      "title": "Potion trouvée",
+      "speaker": "Coffre du Couloir",
+      "text": "Vous ouvrez le vieux coffre et trouvez une Potion de soin (+30 PV) intacte !",
+      "nextNodeId": "c_end"
+    },
+    {
+      "id": "c_empty",
+      "type": "dialogue",
+      "position": {
+        "x": 340,
+        "y": 40
+      },
+      "title": "Coffre vide",
+      "speaker": "Coffre du Couloir",
+      "text": "Le coffre est déjà vide.",
+      "nextNodeId": "c_end"
+    },
+    {
+      "id": "c_end",
+      "type": "end",
+      "position": {
+        "x": 920,
+        "y": 120
+      },
+      "title": "Fin"
+    }
+  ]
+}

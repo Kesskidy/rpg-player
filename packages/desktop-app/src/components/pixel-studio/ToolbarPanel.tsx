@@ -1,8 +1,11 @@
 import type { PixelStudioEngine, PixelToolId } from '@rpg-player/pixel-studio';
 import {
   PixelBrushIcon,
+  PixelCircleIcon,
   PixelEraserIcon,
   PixelGridIcon,
+  PixelLineIcon,
+  PixelRectIcon,
   PixelRedoIcon,
   PixelUndoIcon,
 } from '../ui/PixelIcons';
@@ -31,8 +34,11 @@ export function ToolbarPanel({
     }`;
   }
 
+  const isShapeTool =
+    state.activeTool === 'rect' || state.activeTool === 'ellipse' || state.activeTool === 'line';
+
   return (
-    <div className="space-y-4 border-b-2 border-dnd-border p-3">
+    <div className="space-y-3 border-b-2 border-dnd-border p-3">
       <div>
         <h3 className="mb-2 font-pixel text-[10px] font-bold uppercase tracking-wider text-dnd-gold">
           Outils
@@ -57,6 +63,98 @@ export function ToolbarPanel({
             <span>Gomme</span>
           </button>
         </div>
+
+        {/* Paint-style Draggable Shapes */}
+        <div className="mt-2">
+          <span className="mb-1 block font-pixel text-[9px] uppercase tracking-wider text-dnd-muted">
+            Formes (Cliquer-Glisser)
+          </span>
+          <div className="grid grid-cols-3 gap-1">
+            <button
+              type="button"
+              onClick={() => engine.setTool('rect')}
+              className={`pixel-btn flex flex-col items-center justify-center gap-0.5 py-1.5 text-[10px] font-bold ${
+                state.activeTool === 'rect' ? 'pixel-btn-gold' : ''
+              }`}
+              title="Rectangle / Carré (R)"
+            >
+              <PixelRectIcon size={14} />
+              <span>Carré</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => engine.setTool('ellipse')}
+              className={`pixel-btn flex flex-col items-center justify-center gap-0.5 py-1.5 text-[10px] font-bold ${
+                state.activeTool === 'ellipse' ? 'pixel-btn-gold' : ''
+              }`}
+              title="Cercle / Ellipse (O)"
+            >
+              <PixelCircleIcon size={14} />
+              <span>Cercle</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => engine.setTool('line')}
+              className={`pixel-btn flex flex-col items-center justify-center gap-0.5 py-1.5 text-[10px] font-bold ${
+                state.activeTool === 'line' ? 'pixel-btn-gold' : ''
+              }`}
+              title="Ligne droite (L)"
+            >
+              <PixelLineIcon size={14} />
+              <span>Ligne</span>
+            </button>
+          </div>
+        </div>
+
+        {isShapeTool && (
+          <div className="mt-2 space-y-1.5 border-2 border-dnd-border bg-dnd-obsidian p-2">
+            {state.activeTool !== 'line' && (
+              <div className="grid grid-cols-2 gap-1">
+                <button
+                  type="button"
+                  onClick={() => engine.setShapeFilled(false)}
+                  className={`pixel-btn py-1 text-[10px] font-bold ${
+                    !state.shapeFilled ? 'pixel-btn-gold' : ''
+                  }`}
+                >
+                  Contour
+                </button>
+                <button
+                  type="button"
+                  onClick={() => engine.setShapeFilled(true)}
+                  className={`pixel-btn py-1 text-[10px] font-bold ${
+                    state.shapeFilled ? 'pixel-btn-gold' : ''
+                  }`}
+                >
+                  Rempli
+                </button>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-1">
+              <button
+                type="button"
+                onClick={() => engine.setShapeLockAspect(false)}
+                title="Étendre librement en rectangle ou ovale"
+                className={`pixel-btn py-1 text-[10px] font-bold ${
+                  !state.shapeLockAspect ? 'pixel-btn-arcane' : ''
+                }`}
+              >
+                Étendre libre
+              </button>
+              <button
+                type="button"
+                onClick={() => engine.setShapeLockAspect(true)}
+                title="Verrouiller en 1:1 (carré ou cercle parfait — ou maintenez Shift)"
+                className={`pixel-btn py-1 text-[10px] font-bold ${
+                  state.shapeLockAspect ? 'pixel-btn-arcane' : ''
+                }`}
+              >
+                1:1 (Shift)
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <div>

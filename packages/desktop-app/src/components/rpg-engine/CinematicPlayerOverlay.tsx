@@ -64,14 +64,14 @@ export function CinematicPlayerOverlay({
           if (matchedClip && matchedClip.frames.length > 0) {
             clip = {
               ...matchedClip,
-              loop: isBackground ? true : (config.loopInBackground || !config.waitForCompletion),
+              loop: isBackground ? true : config.loopInBackground,
             };
           } else {
             clip = {
               category: 'cutscene',
               frames: Array.from({ length: Math.max(1, meta.frameCount) }, (_, i) => i),
               fps: 6,
-              loop: isBackground ? true : (config.loopInBackground || !config.waitForCompletion),
+              loop: isBackground ? true : config.loopInBackground,
             };
           }
           setAssetMissing(false);
@@ -130,7 +130,7 @@ export function CinematicPlayerOverlay({
         setCurrentFrame(res.frameIndex);
         drawFrame(res.spriteFrame);
 
-        if (res.completed && !isBackground && config.waitForCompletion) {
+        if (res.completed && !isBackground && !config.loopInBackground) {
           onComplete?.();
           return;
         }

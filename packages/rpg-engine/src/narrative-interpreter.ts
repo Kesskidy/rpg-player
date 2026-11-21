@@ -300,9 +300,13 @@ export function applyNarrativeEffects(
       }
       case 'remove_item': {
         const qty = effect.quantity ?? 1;
-        ctx.inventory.removeItem(effect.itemId, qty);
+        const res = ctx.inventory.removeItem(effect.itemId, qty);
         const itemName = ctx.inventory.getItemDef(effect.itemId)?.name ?? effect.itemId;
-        logs.push(`Retiré : ${itemName} ×${qty}`);
+        logs.push(
+          res.ok
+            ? `Retiré : ${itemName} ×${qty}`
+            : `Impossible de retirer ${itemName} ×${qty} (${res.reason ?? 'objet absent'})`,
+        );
         break;
       }
       case 'set_var': {
@@ -351,6 +355,8 @@ export interface NarrativeStepState {
   activeCinematic: CinematicConfig | null;
   /** Optional looping cinematic running behind subsequent dialogue nodes. */
   backgroundCinematic: CinematicConfig | null;
+  /** Optional non-blocking one-shot cinematic (`waitForCompletion: false, loopInBackground: false`) played alongside this step. */
+  oneShotCinematic: CinematicConfig | null;
 }
 
 /**
@@ -361,6 +367,7 @@ export class NarrativeRunner {
   private readonly ctx: NarrativeRuntimeContext;
   private readonly nodeById: Map<string, NarrativeNode>;
   private backgroundCinematic: CinematicConfig | null = null;
+  private pendingBattleEnemyId: string | null = null;
   private currentStep: NarrativeStepState = {
     status: 'ended',
     node: null,
@@ -371,6 +378,7 @@ export class NarrativeRunner {
     triggeredBattleEnemyId: null,
     activeCinematic: null,
     backgroundCinematic: null,
+    oneShotCinematic: null,
   };
 
   constructor(graph: NarrativeGraph, ctx: NarrativeRuntimeContext) {
@@ -381,6 +389,7 @@ export class NarrativeRunner {
 
   start(): NarrativeStepState {
     this.backgroundCinematic = null;
+    this.pendingBattleEnemyId = null;
     return this.goToNode(this.graph.entryNodeId, []);
   }
 
@@ -420,13 +429,18 @@ export class NarrativeRunner {
   ): NarrativeStepState {
     let cursorId = startNodeId ?? null;
     const logs = [...initialLogs];
-    let battleEnemyId = initialBattleEnemyId;
+    if (initialBattleEnemyId) {
+      this.pendingBattleEnemyId = initialBattleEnemyId;
+    }
+    let oneShotCinematic: CinematicConfig | null = null;
     let hops = 0;
 
     while (cursorId && hops < 32) {
       hops += 1;
       const node = this.nodeById.get(cursorId);
       if (!node || node.type === 'end') {
+        const finalBattleId = this.pendingBattleEnemyId;
+        this.pendingBattleEnemyId = null;
         this.currentStep = {
           status: 'ended',
           node: node ?? null,
@@ -434,9 +448,10 @@ export class NarrativeRunner {
           text: '',
           choices: [],
           actionLogs: logs,
-          triggeredBattleEnemyId: battleEnemyId,
+          triggeredBattleEnemyId: finalBattleId,
           activeCinematic: null,
           backgroundCinematic: null,
+          oneShotCinematic: null,
         };
         return this.currentStep;
       }
@@ -451,7 +466,7 @@ export class NarrativeRunner {
         const applied = applyNarrativeEffects(node.effects, this.ctx);
         logs.push(...applied.logs);
         if (applied.triggeredBattleEnemyId) {
-          battleEnemyId = applied.triggeredBattleEnemyId;
+          this.pendingBattleEnemyId = applied.triggeredBattleEnemyId;
         }
         cursorId = node.nextNodeId ?? null;
         continue;
@@ -470,11 +485,16 @@ export class NarrativeRunner {
             text: cin.caption ?? '',
             choices: [],
             actionLogs: logs,
-            triggeredBattleEnemyId: battleEnemyId,
+            triggeredBattleEnemyId: this.pendingBattleEnemyId,
             activeCinematic: { ...cin },
             backgroundCinematic: this.backgroundCinematic,
+            oneShotCinematic: null,
           };
           return this.currentStep;
+        }
+        // Non-blocking, non-looping one-shot cinematic plays alongside the next step (Bug #7)
+        if (cin && !cin.loopInBackground) {
+          oneShotCinematic = { ...cin };
         }
         cursorId = node.nextNodeId ?? null;
         continue;
@@ -493,13 +513,16 @@ export class NarrativeRunner {
         text: node.text ?? '',
         choices,
         actionLogs: logs,
-        triggeredBattleEnemyId: battleEnemyId,
+        triggeredBattleEnemyId: this.pendingBattleEnemyId,
         activeCinematic: null,
         backgroundCinematic: this.backgroundCinematic,
+        oneShotCinematic,
       };
       return this.currentStep;
     }
 
+    const finalBattleId = this.pendingBattleEnemyId;
+    this.pendingBattleEnemyId = null;
     this.currentStep = {
       status: 'ended',
       node: null,
@@ -507,9 +530,10 @@ export class NarrativeRunner {
       text: '',
       choices: [],
       actionLogs: logs,
-      triggeredBattleEnemyId: battleEnemyId,
+      triggeredBattleEnemyId: finalBattleId,
       activeCinematic: null,
       backgroundCinematic: null,
+      oneShotCinematic: null,
     };
     return this.currentStep;
   }

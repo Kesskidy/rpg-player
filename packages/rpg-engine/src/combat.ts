@@ -46,10 +46,12 @@ export class TurnBasedCombatEngine {
 
   private phase: CombatPhase = 'player_turn';
   private turn = 1;
+  private enemySkillCursor = 0;
   private hero: CombatantState;
   private enemy: CombatantState;
   private readonly log: string[] = [];
   private rewardSummary: string | null = null;
+  private lastAfterHeroSnapshot: CombatSnapshot | null = null;
 
   constructor(
     db: RpgDatabase,
@@ -86,6 +88,15 @@ export class TurnBasedCombatEngine {
     };
 
     this.log.push(`Un ${enemyDef.name} apparaît !`);
+    this.lastAfterHeroSnapshot = this.getSnapshot();
+  }
+
+  /**
+   * Returns the exact snapshot captured right after the hero's action and BEFORE the enemy's
+   * retaliation (used by Mode 2 animated strategy to avoid HP/log desync).
+   */
+  getLastAfterHeroSnapshot(): CombatSnapshot {
+    return this.lastAfterHeroSnapshot ?? this.getSnapshot();
   }
 
   getSnapshot(): CombatSnapshot {
@@ -184,60 +195,74 @@ export class TurnBasedCombatEngine {
   }
 
   private runEnemyTurn(): void {
-    if (this.checkVictoryOrDefeat()) return;
+    // Capture exact post-hero-action snapshot BEFORE enemy retaliates (Bug #13)
+    const battleEnded = this.checkVictoryOrDefeat();
+    this.lastAfterHeroSnapshot = this.getSnapshot();
+    if (battleEnded) return;
 
-    this.enemy.defending = false;
-    const { stunned } = this.tickStatuses(this.enemy);
-    if (this.checkVictoryOrDefeat()) return;
+    let stunSkipChain = 0;
+    while (this.phase === 'player_turn' && stunSkipChain < 5) {
+      this.enemy.defending = false;
+      const { stunned: enemyStunned } = this.tickStatuses(this.enemy);
+      if (this.checkVictoryOrDefeat()) return;
 
-    if (stunned) {
-      this.log.push(`${this.enemy.name} est étourdi et passe son tour !`);
-    } else {
-      const usableSkills = this.enemyDef.skillIds
-        .map((id) => this.db.skills[id])
-        .filter((s): s is SkillDef => s !== undefined && this.enemy.mp >= s.mpCost);
-
-      // Deterministic alternating AI: uses a skill on even turns if MP permits
-      const chosenSkill =
-        usableSkills.length > 0 && this.turn % 2 === 0
-          ? usableSkills[this.turn % usableSkills.length]!
-          : null;
-
-      if (chosenSkill) {
-        this.enemy.mp -= chosenSkill.mpCost;
-        if (chosenSkill.isHeal) {
-          const healed = Math.min(this.enemy.stats.maxHp - this.enemy.hp, chosenSkill.power);
-          this.enemy.hp += healed;
-          this.log.push(`${this.enemy.name} utilise ${chosenSkill.name} (+${healed} PV).`);
-        } else {
-          const dmg = this.computeDamage(this.enemy.stats.atk + chosenSkill.power * 0.6, this.hero);
-          this.hero.hp = Math.max(0, this.hero.hp - dmg);
-          this.log.push(`${this.enemy.name} lance ${chosenSkill.name} et inflige ${dmg} PV !`);
-          if (chosenSkill.statusEffect) {
-            const target = chosenSkill.statusEffect.kind === 'shield' ? this.enemy : this.hero;
-            this.applyStatus(
-              target,
-              chosenSkill.statusEffect.kind,
-              chosenSkill.statusEffect.turns,
-              chosenSkill.statusEffect.potency,
-            );
-          }
-        }
+      if (enemyStunned) {
+        this.log.push(`${this.enemy.name} est étourdi et passe son tour !`);
       } else {
-        const dmg = this.computeDamage(this.enemy.stats.atk, this.hero);
-        this.hero.hp = Math.max(0, this.hero.hp - dmg);
-        this.log.push(`${this.enemy.name} attaque et inflige ${dmg} PV !`);
+        const usableSkills = this.enemyDef.skillIds
+          .map((id) => this.db.skills[id])
+          .filter((s): s is SkillDef => s !== undefined && this.enemy.mp >= s.mpCost);
+
+        // Deterministic alternating AI: uses a skill on even turns and rotates through ALL skills (Bug #15)
+        let chosenSkill: SkillDef | null = null;
+        if (usableSkills.length > 0 && this.turn % 2 === 0) {
+          chosenSkill = usableSkills[this.enemySkillCursor % usableSkills.length]!;
+          this.enemySkillCursor += 1;
+        }
+
+        if (chosenSkill) {
+          this.enemy.mp -= chosenSkill.mpCost;
+          if (chosenSkill.isHeal) {
+            const healed = Math.min(this.enemy.stats.maxHp - this.enemy.hp, chosenSkill.power);
+            this.enemy.hp += healed;
+            this.log.push(`${this.enemy.name} utilise ${chosenSkill.name} (+${healed} PV).`);
+          } else {
+            const dmg = this.computeDamage(this.enemy.stats.atk + chosenSkill.power * 0.6, this.hero);
+            this.hero.hp = Math.max(0, this.hero.hp - dmg);
+            this.log.push(`${this.enemy.name} lance ${chosenSkill.name} et inflige ${dmg} PV !`);
+            if (chosenSkill.statusEffect) {
+              const target = chosenSkill.statusEffect.kind === 'shield' ? this.enemy : this.hero;
+              this.applyStatus(
+                target,
+                chosenSkill.statusEffect.kind,
+                chosenSkill.statusEffect.turns,
+                chosenSkill.statusEffect.potency,
+              );
+            }
+          }
+        } else {
+          const dmg = this.computeDamage(this.enemy.stats.atk, this.hero);
+          this.hero.hp = Math.max(0, this.hero.hp - dmg);
+          this.log.push(`${this.enemy.name} attaque et inflige ${dmg} PV !`);
+        }
       }
+
+      if (this.checkVictoryOrDefeat()) return;
+
+      // Tick hero statuses at end of round and honor stun (Bug #8)
+      const heroTick = this.tickStatuses(this.hero);
+      if (this.checkVictoryOrDefeat()) return;
+
+      this.hero.defending = false;
+      this.turn += 1;
+
+      if (heroTick.stunned) {
+        this.log.push(`${this.hero.name} est étourdi et passe son tour !`);
+        stunSkipChain += 1;
+        continue;
+      }
+      break;
     }
-
-    if (this.checkVictoryOrDefeat()) return;
-
-    // Tick hero statuses at end of round
-    this.tickStatuses(this.hero);
-    if (this.checkVictoryOrDefeat()) return;
-
-    this.hero.defending = false;
-    this.turn += 1;
   }
 
   playerAttack(): CombatSnapshot {
@@ -255,11 +280,13 @@ export class TurnBasedCombatEngine {
     const skill = this.db.skills[skillId];
     if (!skill) {
       this.log.push(`Compétence inconnue : ${skillId}`);
-      return this.getSnapshot();
+      this.lastAfterHeroSnapshot = this.getSnapshot();
+      return this.lastAfterHeroSnapshot;
     }
     if (this.hero.mp < skill.mpCost) {
       this.log.push(`PM insuffisants pour ${skill.name} (${skill.mpCost} PM requis).`);
-      return this.getSnapshot();
+      this.lastAfterHeroSnapshot = this.getSnapshot();
+      return this.lastAfterHeroSnapshot;
     }
 
     this.hero.defending = false;
@@ -297,7 +324,8 @@ export class TurnBasedCombatEngine {
     const used = this.inventory.useConsumable(itemId);
     if (!used.ok) {
       this.log.push(`Impossible d’utiliser ${itemName} : ${used.reason ?? 'erreur'}`);
-      return this.getSnapshot();
+      this.lastAfterHeroSnapshot = this.getSnapshot();
+      return this.lastAfterHeroSnapshot;
     }
 
     this.hero.defending = false;

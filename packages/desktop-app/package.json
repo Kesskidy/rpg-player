@@ -1,6 +1,8 @@
 {
   "name": "@rpg-player/desktop-app",
   "version": "0.1.0",
+  "description": "RPG Player Studio — Suite 16-bit Pixel Art, Animation, RPG Engine & VTT",
+  "author": "Gemini Neon",
   "private": true,
   "main": "dist-electron/main.js",
   "scripts": {
@@ -9,7 +11,59 @@
     "build:web": "vite build",
     "build": "npm run build:electron && npm run build:web",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.electron.json --noEmit",
-    "electron:start": "npm run build:electron && electron ."
+    "electron:start": "npm run build:electron && electron .",
+    "dist:win": "npm run build && electron-builder --win"
+  },
+  "build": {
+    "appId": "com.rpgplayer.studio",
+    "productName": "RPG Player Studio",
+    "electronVersion": "34.5.8",
+    "asar": true,
+    "compression": "maximum",
+    "npmRebuild": false,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "!node_modules/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "../../demo-pack",
+        "to": "demo-pack"
+      },
+      {
+        "from": "../../scenarios",
+        "to": "scenarios"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "signAndEditExecutable": false
+    },
+    "portable": {
+      "artifactName": "RPG-Player-Studio-Portable-${version}.exe"
+    },
+    "nsis": {
+      "artifactName": "RPG-Player-Studio-Setup-${version}.exe",
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
   },
   "dependencies": {
     "@fontsource/jetbrains-mono": "^5.3.0",
@@ -28,7 +82,8 @@
     "@types/react-dom": "^19.0.4",
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.20",
-    "electron": "^34.2.0",
+    "electron": "34.5.8",
+    "electron-builder": "^26.18.0",
     "postcss": "^8.5.2",
     "tailwindcss": "^3.4.17",
     "vite": "^6.1.1"

@@ -73,7 +73,79 @@ export class InventorySystem {
         total += def.weight * entry.quantity;
       }
     }
+    for (const itemId of Object.values(this.equipped)) {
+      if (!itemId) continue;
+      const def = this.db.items[itemId];
+      if (def) {
+        total += def.weight;
+      }
+    }
     return Math.round(total * 100) / 100;
+  }
+
+  /**
+   * Replaces bag slots, gold, and optional equipment cleanly from an external snapshot
+   * (e.g. VTT character sheet) without mutating while iterating.
+   */
+  replaceFromSnapshot(
+    slots: readonly InventorySlotEntry[],
+    gold: number,
+    equipped?: Partial<Record<EquipmentSlot, string>>,
+  ): void {
+    this.slots.length = 0;
+    for (const key of Object.keys(this.equipped) as EquipmentSlot[]) {
+      delete this.equipped[key];
+    }
+    this.gold = Math.max(0, Math.round(gold));
+
+    for (const entry of slots) {
+      const qty = Math.trunc(entry.quantity);
+      if (qty <= 0) continue;
+      const def = this.db.items[entry.itemId];
+      if (def?.stackable) {
+        const existing = this.slots.find((s) => s.itemId === entry.itemId);
+        if (existing) {
+          existing.quantity += qty;
+        } else {
+          this.slots.push({ itemId: entry.itemId, quantity: qty });
+        }
+      } else {
+        for (let i = 0; i < qty; i += 1) {
+          this.slots.push({ itemId: entry.itemId, quantity: 1 });
+        }
+      }
+    }
+
+    if (equipped) {
+      for (const [slotKey, itemId] of Object.entries(equipped) as Array<[EquipmentSlot, string | undefined]>) {
+        if (itemId && this.db.items[itemId]) {
+          this.equipped[slotKey] = itemId;
+        }
+      }
+    }
+  }
+
+  /**
+   * Returns a flat list of all owned items (bag + equipped) for serialization back to
+   * simple slot-based sheets (e.g. VTT character sheet) without losing equipped gear.
+   */
+  toFlatSlots(): InventorySlotEntry[] {
+    const result: InventorySlotEntry[] = this.slots.map((s) => ({ ...s }));
+    for (const itemId of Object.values(this.equipped)) {
+      if (!itemId) continue;
+      const def = this.db.items[itemId];
+      if (def?.stackable) {
+        const existing = result.find((s) => s.itemId === itemId);
+        if (existing) {
+          existing.quantity += 1;
+        } else {
+          result.push({ itemId, quantity: 1 });
+        }
+      } else {
+        result.push({ itemId, quantity: 1 });
+      }
+    }
+    return result;
   }
 
   getItemCount(itemId: string): number {
@@ -176,9 +248,20 @@ export class InventorySystem {
       return { ok: false, reason: 'Objet absent du sac.' };
     }
 
-    const previousEquipped = this.equipped[def.slot];
-    // Remove one from bag
     const entry = this.slots[bagIdx]!;
+    const previousEquipped = this.equipped[def.slot];
+
+    // Check slot capacity BEFORE mutating when equipping from a multi-item stack while swapping
+    if (previousEquipped && entry.quantity > 1) {
+      const prevDef = this.db.items[previousEquipped];
+      const canStackPrevious =
+        Boolean(prevDef?.stackable) && this.slots.some((s) => s.itemId === previousEquipped);
+      if (!canStackPrevious && this.slots.length >= this.maxSlots) {
+        return { ok: false, reason: 'Plus de slots disponibles pour échanger cet équipement.' };
+      }
+    }
+
+    // Remove one from bag
     if (entry.quantity > 1) {
       entry.quantity -= 1;
     } else {
@@ -188,7 +271,15 @@ export class InventorySystem {
     this.equipped[def.slot] = itemId;
 
     if (previousEquipped) {
-      this.slots.push({ itemId: previousEquipped, quantity: 1 });
+      const prevDef = this.db.items[previousEquipped];
+      const existingPrev = prevDef?.stackable
+        ? this.slots.find((s) => s.itemId === previousEquipped)
+        : undefined;
+      if (existingPrev) {
+        existingPrev.quantity += 1;
+      } else {
+        this.slots.push({ itemId: previousEquipped, quantity: 1 });
+      }
     }
 
     return { ok: true };
@@ -199,11 +290,19 @@ export class InventorySystem {
     if (!itemId) {
       return { ok: false, reason: 'Aucun équipement dans cet emplacement.' };
     }
-    if (this.slots.length >= this.maxSlots) {
+    const def = this.db.items[itemId];
+    const existingStack = def?.stackable
+      ? this.slots.find((s) => s.itemId === itemId)
+      : undefined;
+    if (!existingStack && this.slots.length >= this.maxSlots) {
       return { ok: false, reason: 'Inventaire plein.' };
     }
     delete this.equipped[slot];
-    this.slots.push({ itemId, quantity: 1 });
+    if (existingStack) {
+      existingStack.quantity += 1;
+    } else {
+      this.slots.push({ itemId, quantity: 1 });
+    }
     return { ok: true };
   }
 

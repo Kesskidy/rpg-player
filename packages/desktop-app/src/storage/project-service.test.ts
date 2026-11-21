@@ -151,4 +151,32 @@ describe('project-service', () => {
     const loadedDb = await loadRpgDatabase(adapter, manifest);
     expect(loadedDb?.hero.name).toBe('Paladin');
   });
+
+  it('preserves both asset and map entries when saving concurrently from the same initial manifest (Bug #21)', async () => {
+    const adapter = new MemoryStorageAdapter();
+    await adapter.pickProjectDirectory();
+    const initialManifest = await createProject(adapter, 'Projet Concurrent', 32);
+
+    const engine = new PixelStudioEngine({ assetId: 'hero_a', width: 16, height: 16 });
+    const map = createEmptyTileMap({
+      id: 'map_a',
+      name: 'Map A',
+      width: 8,
+      height: 8,
+      tileSize: 32,
+    });
+
+    await Promise.all([
+      savePixelAsset(adapter, initialManifest, engine, {
+        id: 'hero_a',
+        name: 'Héros A',
+        type: 'sprite',
+      }),
+      saveMap(adapter, initialManifest, map),
+    ]);
+
+    const finalOnDisk = await openProject(adapter);
+    expect(finalOnDisk?.assets['hero_a']).toBeDefined();
+    expect(finalOnDisk?.maps?.['map_a']).toBeDefined();
+  });
 });

@@ -33,22 +33,30 @@ export function App() {
 
   async function handleSelectProjectDirectory() {
     setErrorMessage(null);
+    const previousElectronPath =
+      typeof window !== 'undefined' && window.rpgPlayerFs
+        ? await window.rpgPlayerFs.getCurrentProjectPath()
+        : null;
     try {
       const nativeAdapter = createStorageAdapter();
       const picked = await nativeAdapter.pickProjectDirectory();
       if (!picked) {
         return;
       }
+      // Validate/open or initialize project BEFORE switching active storage & projectPath
+      const existing = await openProject(nativeAdapter);
+      const nextManifest = existing
+        ? existing
+        : await createProject(nativeAdapter, picked.name || 'Mon Projet RPG');
+
       setStorage(nativeAdapter);
       setProjectPath(picked.path);
-      const existing = await openProject(nativeAdapter);
-      if (existing) {
-        setProject(existing);
-      } else {
-        const created = await createProject(nativeAdapter, picked.name || 'Mon Projet RPG');
-        setProject(created);
-      }
+      setProject(nextManifest);
     } catch (error) {
+      // Roll back Electron currentProjectRoot so a failed open can never overwrite another folder
+      if (typeof window !== 'undefined' && window.rpgPlayerFs?.setCurrentProjectPath) {
+        await window.rpgPlayerFs.setCurrentProjectPath(previousElectronPath);
+      }
       setErrorMessage(error instanceof Error ? error.message : 'Erreur lors de l’accès au projet.');
     }
   }
@@ -220,7 +228,17 @@ export function App() {
             onGoToPixelStudio={() => setActiveTab('pixel-studio')}
           />
         )}
-        {activeTab === 'vtt' && <VttWorkspace storage={storage} project={project} />}
+        {activeTab === 'vtt' && (
+          <VttWorkspace
+            storage={storage}
+            project={project}
+            onProjectLoaded={(nextStorage, nextManifest, label) => {
+              setStorage(nextStorage);
+              setProject(nextManifest);
+              setProjectPath(label);
+            }}
+          />
+        )}
       </main>
 
       <footer className="flex items-center justify-between border-t-2 border-dnd-border bg-dnd-stone px-4 py-1 text-[11px] text-dnd-muted">

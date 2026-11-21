@@ -8,10 +8,12 @@
   "scripts": {
     "build:core": "npm run build -w @rpg-player/core-types && npm run build -w @rpg-player/pixel-studio && npm run build -w @rpg-player/rpg-engine && npm run build -w @rpg-player/narrative-editor && npm run build -w @rpg-player/vtt-network",
     "build": "npm run build:core && npm run build -w @rpg-player/desktop-app",
+    "dist:win": "npm run build:core && npm run dist:win -w @rpg-player/desktop-app",
     "typecheck": "npm run build:core && npm run typecheck -w @rpg-player/core-types && npm run typecheck -w @rpg-player/pixel-studio && npm run typecheck -w @rpg-player/rpg-engine && npm run typecheck -w @rpg-player/narrative-editor && npm run typecheck -w @rpg-player/vtt-network && npm run typecheck -w @rpg-player/desktop-app",
     "dev": "npm run build:core && npm run dev -w @rpg-player/desktop-app",
     "vtt:server": "npm run build -w @rpg-player/core-types && npm run build -w @rpg-player/vtt-network && npm run start -w @rpg-player/vtt-network",
     "demo:generate": "npm run build:core && tsc -p scripts/demo-pack/tsconfig.json && node scripts/demo-pack/dist/generate.js",
+    "scenario:generate": "npm run build:core && tsc -p scripts/scenarios/quete-taverne/tsconfig.json && node scripts/scenarios/quete-taverne/dist/scenarios/quete-taverne/generate.js",
     "test": "vitest run",
     "test:watch": "vitest"
   },

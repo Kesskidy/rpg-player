@@ -15,26 +15,49 @@ interface LoadedAssetEntry {
  */
 export class AssetTextureRegistry {
   private readonly entries = new Map<string, LoadedAssetEntry>();
+  private loadSeq = 0;
 
   async loadFromStorage(
     storage: ProjectStorageAdapter,
     assets: Record<string, AssetMeta>,
   ): Promise<void> {
-    this.clear();
-
+    const mySeq = ++this.loadSeq;
     const list = Object.values(assets);
+    const loadedPairs: Array<{ meta: AssetMeta; bytes: Uint8Array }> = [];
+
     await Promise.all(
       list.map(async (meta) => {
         try {
           const exists = await storage.exists(meta.filePath);
           if (!exists) return;
           const bytes = await storage.readBinary(meta.filePath);
-          await this.registerPngBytes(meta, bytes);
+          loadedPairs.push({ meta, bytes });
         } catch {
           // Skip broken or missing asset files gracefully without crashing the editor
         }
       }),
     );
+
+    // Abort stale concurrent load so it cannot wipe textures from a newer load
+    if (mySeq !== this.loadSeq) {
+      return;
+    }
+
+    const oldEntries = Array.from(this.entries.values());
+    this.entries.clear();
+
+    for (const { meta, bytes } of loadedPairs) {
+      try {
+        await this.registerPngBytes(meta, bytes);
+      } catch {
+        // Ignore individual corrupt PNGs
+      }
+    }
+
+    // Dispose replaced textures only after new ones are registered
+    for (const old of oldEntries) {
+      this.disposeEntry(old);
+    }
   }
 
   async registerPngBytes(meta: AssetMeta, pngBytes: Uint8Array): Promise<void> {

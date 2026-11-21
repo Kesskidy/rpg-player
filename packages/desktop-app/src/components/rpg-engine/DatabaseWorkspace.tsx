@@ -12,7 +12,7 @@ import type {
   SkillDef,
 } from '@rpg-player/core-types';
 import { getDefaultAIProfile, InventorySystem } from '@rpg-player/rpg-engine';
-import { saveRpgDatabase } from '../../storage/project-service';
+import { formatSaveFeedback, saveRpgDatabase } from '../../storage/project-service';
 import { CharacterSheetsPanel } from './CharacterSheetsPanel';
 import { CombatOverlay } from './CombatOverlay';
 import { PixelSaveIcon } from '../ui/PixelIcons';
@@ -69,7 +69,13 @@ export function DatabaseWorkspace({
     try {
       const updated = await saveRpgDatabase(storage, project, database);
       onProjectUpdated(updated);
-      setFeedback({ kind: 'ok', text: 'Base de données RPG sauvegardée (database/rpg.db.json).' });
+      setFeedback({
+        kind: 'ok',
+        text: formatSaveFeedback(
+          storage,
+          'Base de données RPG sauvegardée (database/rpg.db.json).',
+        ),
+      });
     } catch (error) {
       setFeedback({
         kind: 'error',

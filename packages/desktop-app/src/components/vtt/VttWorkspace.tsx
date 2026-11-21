@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type {
+  MapEvent,
+  NarrativeVariableValue,
   ProjectManifest,
   ProjectStorageAdapter,
   RpgDatabase,
@@ -7,17 +9,25 @@ import type {
   VttClientMessage,
   VttRole,
   VttRoomState,
+  VttToken,
   VttTokenKind,
 } from '@rpg-player/core-types';
 import {
   AssetTextureRegistry,
   createDefaultRpgDatabase,
   createEmptyTileMap,
+  InventorySystem,
+  NarrativeRunner,
   PixiVttViewport,
+  type CombatSnapshot,
+  type NarrativeStepState,
 } from '@rpg-player/rpg-engine';
 import { VttClient, VttRoomManager } from '@rpg-player/vtt-network';
 import { loadMap, loadRpgDatabase } from '../../storage/project-service';
-import { PixelCrownIcon, PixelDiceIcon, PixelGridIcon } from '../ui/PixelIcons';
+import { loadScenarioBundle, type LoadedScenarioBundle } from '../../storage/scenario-loader';
+import { CombatOverlay } from '../rpg-engine/CombatOverlay';
+import { DialogueOverlay } from '../rpg-engine/DialogueOverlay';
+import { PixelBookIcon, PixelCrownIcon, PixelDiceIcon, PixelGridIcon } from '../ui/PixelIcons';
 import { VttChatDicePanel } from './VttChatDicePanel';
 import { VttLobby, type CreateRoomForm, type JoinRoomForm } from './VttLobby';
 import { VttSheetPanel } from './VttSheetPanel';
@@ -25,6 +35,11 @@ import { VttSheetPanel } from './VttSheetPanel';
 interface VttWorkspaceProps {
   storage: ProjectStorageAdapter;
   project: ProjectManifest | null;
+  onProjectLoaded?: (
+    storage: ProjectStorageAdapter,
+    manifest: ProjectManifest,
+    pathLabel: string,
+  ) => void;
 }
 
 type GmBoardTool = 'move-token' | 'fog-reveal' | 'fog-hide';
@@ -61,12 +76,27 @@ function createStarterVttMap(tileSize = 32): TileMapData {
   return map;
 }
 
-export function VttWorkspace({ storage, project }: VttWorkspaceProps) {
+export function VttWorkspace({ storage, project, onProjectLoaded }: VttWorkspaceProps) {
   const [database, setDatabase] = useState<RpgDatabase>(() => createDefaultRpgDatabase());
   const [session, setSession] = useState<ActiveSession | null>(null);
   const [roomState, setRoomState] = useState<VttRoomState | null>(null);
   const [connecting, setConnecting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [activeScenario, setActiveScenario] = useState<LoadedScenarioBundle | null>(null);
+  const [activeDialogue, setActiveDialogue] = useState<{
+    runner: NarrativeRunner;
+    step: NarrativeStepState;
+    inventory: InventorySystem;
+  } | null>(null);
+  const [activeVttCombat, setActiveVttCombat] = useState<{
+    enemyId: string;
+    tokenId: string;
+    inventory: InventorySystem;
+    initialHeroHp: number;
+    initialHeroMp: number;
+  } | null>(null);
+  const scenarioVarsRef = useRef<Record<string, NarrativeVariableValue>>({});
+  const [vttViewportReady, setVttViewportReady] = useState(false);
 
   const [gmTool, setGmTool] = useState<GmBoardTool>('move-token');
   const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
@@ -126,21 +156,17 @@ export function VttWorkspace({ storage, project }: VttWorkspaceProps) {
     const viewport = new PixiVttViewport(registry);
     registryRef.current = registry;
     viewportRef.current = viewport;
+    setVttViewportReady(false);
 
     let cancelled = false;
-    void viewport.init(host).then(async () => {
+    void viewport.init(host).then(() => {
       if (cancelled) return;
-      if (project) {
-        await registry.loadFromStorage(storage, project.assets);
-      }
-      if (!cancelled && roomState) {
-        viewport.syncState(roomState, session.role, session.participantId, selectedTokenId, showGrid);
-        viewport.forceRebuildMap();
-      }
+      setVttViewportReady(true);
     });
 
     return () => {
       cancelled = true;
+      setVttViewportReady(false);
       viewport.destroy();
       registry.destroy();
       viewportRef.current = null;
@@ -148,6 +174,38 @@ export function VttWorkspace({ storage, project }: VttWorkspaceProps) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.roomCode]);
+
+  // Sync textures cleanly whenever viewport is ready or project/scenario changes
+  useEffect(() => {
+    if (!vttViewportReady || !registryRef.current || !viewportRef.current) return;
+    const effectiveStorage = activeScenario?.adapter ?? storage;
+    const effectiveProject = activeScenario?.manifest ?? project;
+    let cancelled = false;
+
+    async function syncVttTextures() {
+      if (effectiveProject) {
+        await registryRef.current!.loadFromStorage(effectiveStorage, effectiveProject.assets);
+      } else {
+        registryRef.current!.clear();
+      }
+      if (!cancelled && viewportRef.current && session && roomState) {
+        viewportRef.current.syncState(
+          roomState,
+          session.role,
+          session.participantId,
+          selectedTokenId,
+          showGrid,
+        );
+        viewportRef.current.forceRebuildMap();
+      }
+    }
+    void syncVttTextures();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vttViewportReady, storage, project?.id, activeScenario?.manifest.id]);
 
   // Push every state sync into PixiJS VTT renderer
   useEffect(() => {
@@ -172,12 +230,25 @@ export function VttWorkspace({ storage, project }: VttWorkspaceProps) {
       ) {
         return;
       }
+      if (activeDialogue || activeVttCombat) {
+        return;
+      }
+
+      const key = event.key.toLowerCase();
+      if (key === 'e' || event.key === 'Enter') {
+        const prompt = findNearbyScenarioInteraction();
+        if (prompt) {
+          event.preventDefault();
+          triggerNearbyInteraction(prompt);
+          return;
+        }
+      }
+
       const token =
         roomState!.tokens.find((t) => t.id === selectedTokenId) ??
         roomState!.tokens.find((t) => t.ownerIds.includes(session!.participantId));
       if (!token) return;
 
-      const key = event.key.toLowerCase();
       let dx = 0;
       let dy = 0;
       if (key === 'arrowup' || key === 'z' || key === 'w') dy = -1;
@@ -197,7 +268,7 @@ export function VttWorkspace({ storage, project }: VttWorkspaceProps) {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session, roomState, selectedTokenId]);
+  }, [session, roomState, selectedTokenId, activeScenario, activeDialogue, activeVttCombat]);
 
   async function resolveMapById(mapId: string | null): Promise<TileMapData> {
     if (project && mapId && project.maps?.[mapId]) {
@@ -222,6 +293,19 @@ export function VttWorkspace({ storage, project }: VttWorkspaceProps) {
         setErrorMessage(outcome.errorMessage ?? 'Action refusée.');
         return;
       }
+
+      // Auto-trigger door / scene teleport when stepping on a teleport tile in Scenario mode (even in Player view!)
+      if (msg.type === 'move_token' && activeScenario) {
+        const currentState = manager.projectStateFor(session.roomCode, session.participantId);
+        const teleportEv = currentState?.activeMap.events.find(
+          (ev) => ev.teleport && ev.x === msg.x && ev.y === msg.y,
+        );
+        if (teleportEv?.teleport && activeScenario.vttPreset.scenes[teleportEv.teleport.targetMapId]) {
+          handleSwitchScenarioScene(teleportEv.teleport.targetMapId);
+          return;
+        }
+      }
+
       const projected = manager.projectStateFor(session.roomCode, session.participantId);
       if (projected) setRoomState(projected);
       return;
@@ -238,6 +322,8 @@ export function VttWorkspace({ storage, project }: VttWorkspaceProps) {
     setConnecting(true);
     setErrorMessage(null);
     try {
+      clientRef.current?.disconnect();
+      clientRef.current = null;
       const initialMap = await resolveMapById(form.selectedMapId);
       const client = new VttClient({
         onMessage: (serverMsg) => {
@@ -281,6 +367,8 @@ export function VttWorkspace({ storage, project }: VttWorkspaceProps) {
     setConnecting(true);
     setErrorMessage(null);
     try {
+      clientRef.current?.disconnect();
+      clientRef.current = null;
       const client = new VttClient({
         onMessage: (serverMsg) => {
           if (serverMsg.type === 'room_joined') {
@@ -375,6 +463,375 @@ export function VttWorkspace({ storage, project }: VttWorkspaceProps) {
     setRoomState(manager.projectStateFor(roomCode, gmId));
   }
 
+  function applyScenarioSceneToManager(
+    manager: VttRoomManager,
+    roomCode: string,
+    gmId: string,
+    playerId: string,
+    bundle: LoadedScenarioBundle,
+    sceneId: string,
+    changeMapFirst: boolean,
+  ) {
+    const scenePreset = bundle.vttPreset.scenes[sceneId];
+    const targetMap = bundle.maps[sceneId];
+    if (!scenePreset || !targetMap) return;
+
+    if (changeMapFirst) {
+      manager.handleMessage(roomCode, gmId, {
+        type: 'change_map',
+        map: targetMap,
+        hideAllFog: scenePreset.fogEnabled,
+      });
+    }
+
+    // Clear existing tokens and spawn scenario tokens cleanly
+    const current = manager.projectStateFor(roomCode, gmId);
+    if (current) {
+      for (const existingTok of current.tokens) {
+        manager.handleMessage(roomCode, gmId, {
+          type: 'remove_token',
+          tokenId: existingTok.id,
+        });
+      }
+    }
+
+    for (const tokSpec of scenePreset.tokens) {
+      const { ownerRole, ...tokenData } = tokSpec;
+      manager.handleMessage(roomCode, gmId, {
+        type: 'spawn_token',
+        token: {
+          ...tokenData,
+          ownerIds: ownerRole === 'player' ? [playerId] : [gmId],
+        },
+      });
+    }
+
+    // Configure Fog of War: OFF in Tavern, ON in Dungeon (with spawn area revealed)
+    manager.handleMessage(roomCode, gmId, {
+      type: 'update_fog',
+      action: 'set_enabled',
+      enabled: scenePreset.fogEnabled,
+    });
+    if (!scenePreset.fogEnabled) {
+      manager.handleMessage(roomCode, gmId, { type: 'update_fog', action: 'reveal_all' });
+    } else {
+      manager.handleMessage(roomCode, gmId, { type: 'update_fog', action: 'hide_all' });
+      const radius = scenePreset.revealSpawnRadius || 4;
+      const cells: Array<{ x: number; y: number; hidden: boolean }> = [];
+      const cx = targetMap.playerSpawn.x;
+      const cy = targetMap.playerSpawn.y;
+      for (let y = Math.max(0, cy - radius); y <= Math.min(targetMap.height - 1, cy + radius); y += 1) {
+        for (let x = Math.max(0, cx - radius); x <= Math.min(targetMap.width - 1, cx + radius); x += 1) {
+          if (Math.hypot(x - cx, y - cy) <= radius + 0.5) {
+            cells.push({ x, y, hidden: false });
+          }
+        }
+      }
+      if (cells.length > 0) {
+        manager.handleMessage(roomCode, gmId, { type: 'update_fog', cells });
+      }
+    }
+  }
+
+  async function handleLoadTavernScenario() {
+    setConnecting(true);
+    setErrorMessage(null);
+    try {
+      const bundle = await loadScenarioBundle('quete_taverne');
+      setActiveScenario(bundle);
+      setDatabase(bundle.database);
+      onProjectLoaded?.(
+        bundle.adapter,
+        bundle.manifest,
+        'scenarios/quete_taverne (La Prime de la Taverne)',
+      );
+
+      const initialSceneId = bundle.vttPreset.initialSceneId;
+      const initialMap = bundle.maps[initialSceneId];
+      if (!initialMap) {
+        throw new Error(`Scène initiale introuvable : ${initialSceneId}`);
+      }
+
+      const manager = new VttRoomManager();
+      localManagerRef.current = manager;
+
+      const created = manager.handleMessage(null, null, {
+        type: 'create_room',
+        roomName: bundle.vttPreset.title,
+        gmName: 'Maître du Jeu',
+        initialMap,
+      });
+      const roomCode = created.roomCode!;
+      const gmId = created.participantId!;
+
+      const joined = manager.handleMessage(null, null, {
+        type: 'join_room',
+        roomCode,
+        playerName: bundle.vttPreset.playerSheet.characterName,
+      });
+      const playerId = joined.participantId!;
+
+      // Apply pre-filled Adventurer character sheet (60 PV, sword + 1 potion)
+      manager.handleMessage(roomCode, gmId, {
+        type: 'update_sheet',
+        participantId: playerId,
+        patch: bundle.vttPreset.playerSheet,
+      });
+
+      // Populate Act 1 (Taverne, fog OFF)
+      applyScenarioSceneToManager(manager, roomCode, gmId, playerId, bundle, initialSceneId, false);
+
+      // Send intro RP & GM announcement
+      for (const msg of bundle.vttPreset.introChatMessages) {
+        if (msg.channel === 'rp' || msg.channel === 'hrp') {
+          manager.handleMessage(roomCode, gmId, {
+            type: 'send_chat',
+            channel: msg.channel,
+            text: msg.text,
+          });
+        }
+      }
+      manager.handleMessage(roomCode, gmId, {
+        type: 'gm_trigger_event',
+        kind: bundle.vttPreset.introAnnouncement.kind,
+        title: bundle.vttPreset.introAnnouncement.title,
+        message: bundle.vttPreset.introAnnouncement.message,
+      });
+
+      setSession({
+        mode: 'local-demo',
+        roomCode,
+        participantId: gmId,
+        role: 'gm',
+        demoGmId: gmId,
+        demoPlayerId: playerId,
+      });
+      setRoomState(manager.projectStateFor(roomCode, gmId));
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : 'Impossible de charger le scénario « La Prime de la Taverne ».',
+      );
+    } finally {
+      setConnecting(false);
+    }
+  }
+
+  function handleSwitchScenarioScene(sceneId: string) {
+    if (!activeScenario || !session || session.mode !== 'local-demo' || !localManagerRef.current) {
+      return;
+    }
+    const gmId = session.demoGmId!;
+    const playerId = session.demoPlayerId!;
+    applyScenarioSceneToManager(
+      localManagerRef.current,
+      session.roomCode,
+      gmId,
+      playerId,
+      activeScenario,
+      sceneId,
+      true,
+    );
+    const scenePreset = activeScenario.vttPreset.scenes[sceneId];
+    if (scenePreset) {
+      localManagerRef.current.handleMessage(session.roomCode, gmId, {
+        type: 'gm_trigger_event',
+        kind: 'event',
+        title: scenePreset.label,
+        message: scenePreset.gmNotes,
+      });
+    }
+    setSelectedTokenId(null);
+    setRoomState(localManagerRef.current.projectStateFor(session.roomCode, session.participantId));
+  }
+
+  function syncInventoryBackToPlayerSheet(inv: InventorySystem) {
+    if (!session || session.mode !== 'local-demo' || !localManagerRef.current) return;
+    const gmId = session.demoGmId!;
+    const playerId = session.demoPlayerId!;
+    localManagerRef.current.handleMessage(session.roomCode, gmId, {
+      type: 'update_sheet',
+      participantId: playerId,
+      patch: {
+        inventory: inv.toFlatSlots(),
+        gold: inv.getGold(),
+      },
+    });
+    setRoomState(localManagerRef.current.projectStateFor(session.roomCode, session.participantId));
+  }
+
+  function createInventoryFromPlayerSheet(): InventorySystem {
+    const inv = new InventorySystem(database);
+    if (session?.demoPlayerId && roomState?.sheets[session.demoPlayerId]) {
+      const sheet = roomState.sheets[session.demoPlayerId]!;
+      inv.replaceFromSnapshot(sheet.inventory, sheet.gold);
+    }
+    return inv;
+  }
+
+  function handleOpenScenarioDialogue(narrativeId: string) {
+    const graph = activeScenario?.narratives[narrativeId];
+    if (!graph) return;
+    const inv = createInventoryFromPlayerSheet();
+    const runner = new NarrativeRunner(graph, {
+      inventory: inv,
+      variables: scenarioVarsRef.current,
+    });
+    const step = runner.start();
+    syncInventoryBackToPlayerSheet(inv);
+    if (step.status !== 'ended') {
+      setActiveDialogue({ runner, step, inventory: inv });
+    }
+  }
+
+  type NearbyInteraction =
+    | { kind: 'teleport'; label: string; targetMapId: string }
+    | { kind: 'dialogue'; label: string; narrativeId: string }
+    | { kind: 'combat'; label: string; enemyId: string; token: VttToken };
+
+  function findNearbyScenarioInteraction(): NearbyInteraction | null {
+    if (!activeScenario || !roomState || !session) return null;
+    const playerToken =
+      roomState.tokens.find((t) => t.kind === 'player' && t.ownerIds.includes(session.participantId)) ??
+      roomState.tokens.find((t) => t.kind === 'player');
+    if (!playerToken) return null;
+
+    // 1. Check nearby teleport door (distance <= 1.5 tiles)
+    for (const ev of roomState.activeMap.events) {
+      if (ev.teleport && activeScenario.vttPreset.scenes[ev.teleport.targetMapId]) {
+        const dist = Math.hypot(playerToken.x - ev.x, playerToken.y - ev.y);
+        if (dist <= 1.5) {
+          const targetLabel =
+            activeScenario.vttPreset.scenes[ev.teleport.targetMapId]?.label ?? ev.name;
+          return {
+            kind: 'teleport',
+            label: `Franchir la porte → ${targetLabel}`,
+            targetMapId: ev.teleport.targetMapId,
+          };
+        }
+      }
+    }
+
+    // 2. Check nearby narrative NPC or Chest (distance <= 2.2 for NPC behind counter, 1.5 for chest)
+    for (const ev of roomState.activeMap.events) {
+      if (ev.narrativeId && activeScenario.narratives[ev.narrativeId]) {
+        const maxDist = ev.kind === 'npc' ? 2.2 : 1.5;
+        if (Math.hypot(playerToken.x - ev.x, playerToken.y - ev.y) <= maxDist) {
+          return {
+            kind: 'dialogue',
+            label: ev.kind === 'chest' ? `Ouvrir : ${ev.name}` : `Parler : ${ev.name}`,
+            narrativeId: ev.narrativeId,
+          };
+        }
+      }
+    }
+
+    // 3. Check adjacent living monster token on board (distance <= 1.6)
+    for (const tok of roomState.tokens) {
+      if (tok.kind !== 'monster' || tok.hp <= 0) continue;
+      if (Math.hypot(playerToken.x - tok.x, playerToken.y - tok.y) <= 1.6) {
+        const enemyId = tok.name.toLowerCase().includes('boss')
+          ? 'boss_ogre_sombre'
+          : 'sbire_donjon';
+        if (database.enemies[enemyId]) {
+          return {
+            kind: 'combat',
+            label: `Combattre : ${tok.name}`,
+            enemyId,
+            token: tok,
+          };
+        }
+      }
+    }
+
+    return null;
+  }
+
+  function triggerNearbyInteraction(interaction: NearbyInteraction) {
+    if (interaction.kind === 'teleport') {
+      handleSwitchScenarioScene(interaction.targetMapId);
+      return;
+    }
+    if (interaction.kind === 'dialogue') {
+      handleOpenScenarioDialogue(interaction.narrativeId);
+      return;
+    }
+    if (interaction.kind === 'combat') {
+      const inv = createInventoryFromPlayerSheet();
+      if (inv.hasItem('epee_basique')) {
+        inv.equipItem('epee_basique');
+      }
+      const sheet = session?.demoPlayerId ? roomState?.sheets[session.demoPlayerId] : null;
+      setActiveVttCombat({
+        enemyId: interaction.enemyId,
+        tokenId: interaction.token.id,
+        inventory: inv,
+        initialHeroHp: sheet?.hp ?? database.hero.stats.maxHp,
+        initialHeroMp: sheet?.mp ?? database.hero.stats.maxMp,
+      });
+    }
+  }
+
+  function handleFinishVttCombat(finalSnap: CombatSnapshot) {
+    if (!activeVttCombat || !session || session.mode !== 'local-demo' || !localManagerRef.current) {
+      setActiveVttCombat(null);
+      return;
+    }
+    const manager = localManagerRef.current;
+    const gmId = session.demoGmId!;
+    const playerId = session.demoPlayerId!;
+
+    // Update hero sheet HP/MP/inventory/gold
+    const nextHp =
+      finalSnap.phase === 'defeat'
+        ? Math.max(1, Math.round(finalSnap.hero.stats.maxHp * 0.5))
+        : Math.max(1, finalSnap.hero.hp);
+    manager.handleMessage(session.roomCode, gmId, {
+      type: 'update_sheet',
+      participantId: playerId,
+      patch: {
+        hp: nextHp,
+        mp: finalSnap.hero.mp,
+        inventory: activeVttCombat.inventory.toFlatSlots(),
+        gold: activeVttCombat.inventory.getGold(),
+      },
+    });
+
+    // Sync hero token HP & remove or damage defeated monster token on board
+    const fullState = manager.projectStateFor(session.roomCode, gmId);
+    const heroTok = fullState?.tokens.find((t) => t.kind === 'player');
+    if (heroTok) {
+      manager.handleMessage(session.roomCode, gmId, {
+        type: 'update_token',
+        tokenId: heroTok.id,
+        patch: { hp: nextHp, mp: finalSnap.hero.mp },
+      });
+    }
+
+    if (finalSnap.phase === 'victory') {
+      manager.handleMessage(session.roomCode, gmId, {
+        type: 'remove_token',
+        tokenId: activeVttCombat.tokenId,
+      });
+      manager.handleMessage(session.roomCode, gmId, {
+        type: 'gm_trigger_event',
+        kind: 'event',
+        title: `Victoire contre ${finalSnap.enemy.name} !`,
+        message: finalSnap.rewardSummary ? `Butin : ${finalSnap.rewardSummary}` : 'Ennemi éliminé.',
+      });
+    } else {
+      manager.handleMessage(session.roomCode, gmId, {
+        type: 'update_token',
+        tokenId: activeVttCombat.tokenId,
+        patch: { hp: Math.max(1, finalSnap.enemy.hp) },
+      });
+    }
+
+    setActiveVttCombat(null);
+    setRoomState(manager.projectStateFor(session.roomCode, session.participantId));
+  }
+
   function handleToggleDemoRole() {
     if (!session || session.mode !== 'local-demo' || !localManagerRef.current) return;
     const nextRole: VttRole = session.role === 'gm' ? 'player' : 'gm';
@@ -398,10 +855,16 @@ export function VttWorkspace({ storage, project }: VttWorkspaceProps) {
     setSession(null);
     setRoomState(null);
     setSelectedTokenId(null);
+    setActiveDialogue(null);
+    setActiveVttCombat(null);
     setErrorMessage(null);
   }
 
   async function handleChangeScene(mapId: string) {
+    if (activeScenario?.vttPreset.scenes[mapId]) {
+      handleSwitchScenarioScene(mapId);
+      return;
+    }
     const nextMap = await resolveMapById(mapId || null);
     sendAction({ type: 'change_map', map: nextMap, hideAllFog: true });
   }
@@ -517,6 +980,7 @@ export function VttWorkspace({ storage, project }: VttWorkspaceProps) {
         onCreateRoom={(form) => void handleCreateRoom(form)}
         onJoinRoom={(form) => void handleJoinRoom(form)}
         onStartLocalDemo={(gm, plr, mapId) => void handleStartLocalDemo(gm, plr, mapId)}
+        onLoadTavernScenario={() => void handleLoadTavernScenario()}
       />
     );
   }
@@ -528,6 +992,8 @@ export function VttWorkspace({ storage, project }: VttWorkspaceProps) {
     ? Object.values(project.assets).filter((a) => a.type === 'sprite')
     : [];
   const players = roomState.participants.filter((p) => p.role === 'player');
+  const nearbyInteraction = findNearbyScenarioInteraction();
+  void (undefined as unknown as MapEvent);
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
@@ -566,6 +1032,16 @@ export function VttWorkspace({ storage, project }: VttWorkspaceProps) {
         </div>
 
         <div className="flex items-center gap-2">
+          {activeScenario?.narratives['quete_femme_guichet'] && (
+            <button
+              type="button"
+              onClick={() => handleOpenScenarioDialogue('quete_femme_guichet')}
+              className="pixel-btn pixel-btn-gold flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold"
+            >
+              <PixelBookIcon size={13} />
+              <span>Dialogue Guichet</span>
+            </button>
+          )}
           {session.mode === 'local-demo' && (
             <button
               type="button"
@@ -605,7 +1081,36 @@ export function VttWorkspace({ storage, project }: VttWorkspaceProps) {
       <div className="flex flex-1 overflow-hidden">
         {/* Left Dock: GM Admin Controls (visible ONLY to GM) */}
         {isGm && (
-          <aside className="flex w-72 flex-col space-y-3 overflow-y-auto border-r border-slate-800 bg-surface-900 p-3 text-xs">
+          <aside className="flex w-72 flex-col space-y-3 overflow-y-auto border-r-2 border-dnd-border bg-dnd-stone p-3 text-xs">
+            {/* Active Scenario GM Quick Acts & Notes */}
+            {activeScenario && (
+              <div className="space-y-2 border-b-2 border-dnd-border pb-3">
+                <h3 className="font-pixel text-[10px] font-bold uppercase tracking-wider text-dnd-gold">
+                  Scénario : {activeScenario.vttPreset.title}
+                </h3>
+                <div className="grid grid-cols-1 gap-1.5">
+                  {Object.values(activeScenario.vttPreset.scenes).map((sc) => (
+                    <button
+                      key={sc.mapId}
+                      type="button"
+                      onClick={() => handleSwitchScenarioScene(sc.mapId)}
+                      className={`pixel-btn px-2 py-1.5 text-left text-[10px] font-bold ${
+                        roomState.activeMap.id === sc.mapId ? 'pixel-btn-gold' : ''
+                      }`}
+                    >
+                      {sc.label}
+                    </button>
+                  ))}
+                </div>
+                {activeScenario.vttPreset.scenes[roomState.activeMap.id]?.gmNotes && (
+                  <p className="border-2 border-dnd-border bg-dnd-obsidian p-2 text-[10px] leading-relaxed text-dnd-muted">
+                    <strong className="text-dnd-gold">Aide MJ : </strong>
+                    {activeScenario.vttPreset.scenes[roomState.activeMap.id]?.gmNotes}
+                  </p>
+                )}
+              </div>
+            )}
+
             {/* Scene / Map Switcher */}
             <div className="space-y-1.5 border-b border-slate-800 pb-3">
               <h3 className="text-[11px] font-semibold uppercase tracking-wider text-amber-300">
@@ -1031,6 +1536,18 @@ export function VttWorkspace({ storage, project }: VttWorkspaceProps) {
             className="relative flex-1 cursor-crosshair overflow-hidden"
           />
 
+          {nearbyInteraction && (
+            <div className="absolute bottom-14 left-1/2 z-30 -translate-x-1/2">
+              <button
+                type="button"
+                onClick={() => triggerNearbyInteraction(nearbyInteraction)}
+                className="pixel-btn pixel-btn-gold flex items-center gap-2 px-4 py-2 text-xs font-bold shadow-pixel-lg"
+              >
+                <span>[E] {nearbyInteraction.label}</span>
+              </button>
+            </div>
+          )}
+
           <div className="pointer-events-none absolute bottom-3 left-3 flex items-center gap-3 rounded-md border border-slate-800 bg-surface-900/90 px-3 py-1.5 text-[11px] text-slate-300 backdrop-blur">
             <span className="font-semibold text-white">{roomState.activeMap.name}</span>
             <span className="text-slate-600">|</span>
@@ -1090,6 +1607,52 @@ export function VttWorkspace({ storage, project }: VttWorkspaceProps) {
           )}
         </aside>
       </div>
+      {activeDialogue && (
+        <DialogueOverlay
+          step={activeDialogue.step}
+          storage={activeScenario?.adapter ?? storage}
+          project={activeScenario?.manifest ?? project}
+          onSelectChoice={(choiceId) => {
+            const next = activeDialogue.runner.selectChoice(choiceId);
+            syncInventoryBackToPlayerSheet(activeDialogue.inventory);
+            if (next.status === 'ended') {
+              setActiveDialogue(null);
+            } else {
+              setActiveDialogue({
+                runner: activeDialogue.runner,
+                step: next,
+                inventory: activeDialogue.inventory,
+              });
+            }
+          }}
+          onAdvance={() => {
+            const next = activeDialogue.runner.advance();
+            syncInventoryBackToPlayerSheet(activeDialogue.inventory);
+            if (next.status === 'ended') {
+              setActiveDialogue(null);
+            } else {
+              setActiveDialogue({
+                runner: activeDialogue.runner,
+                step: next,
+                inventory: activeDialogue.inventory,
+              });
+            }
+          }}
+          onClose={() => setActiveDialogue(null)}
+        />
+      )}
+
+      {activeVttCombat && (
+        <CombatOverlay
+          enemyId={activeVttCombat.enemyId}
+          database={database}
+          inventory={activeVttCombat.inventory}
+          initialHeroHp={activeVttCombat.initialHeroHp}
+          initialHeroMp={activeVttCombat.initialHeroMp}
+          map={roomState.activeMap}
+          onFinish={handleFinishVttCombat}
+        />
+      )}
     </div>
   );
 }

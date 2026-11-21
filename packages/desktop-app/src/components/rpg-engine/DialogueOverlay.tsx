@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import type { ProjectManifest, ProjectStorageAdapter } from '@rpg-player/core-types';
 import type { NarrativeStepState } from '@rpg-player/rpg-engine';
 import { CinematicPlayerOverlay } from './CinematicPlayerOverlay';
@@ -19,6 +20,12 @@ export function DialogueOverlay({
   onAdvance,
   onClose,
 }: DialogueOverlayProps) {
+  const [oneShotDone, setOneShotDone] = useState(false);
+
+  useEffect(() => {
+    setOneShotDone(false);
+  }, [step.oneShotCinematic]);
+
   if (step.status === 'ended') {
     return null;
   }
@@ -43,6 +50,15 @@ export function DialogueOverlay({
           storage={storage}
           project={project}
           isBackground
+        />
+      )}
+
+      {step.oneShotCinematic && !oneShotDone && (
+        <CinematicPlayerOverlay
+          config={step.oneShotCinematic}
+          storage={storage}
+          project={project}
+          onComplete={() => setOneShotDone(true)}
         />
       )}
 

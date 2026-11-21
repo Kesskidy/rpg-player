@@ -1,0 +1,296 @@
+{
+  "schemaVersion": 1,
+  "id": "scenario_quete_taverne",
+  "name": "Scénario — La Prime de la Taverne",
+  "createdAt": "2026-11-21T15:50:00.211Z",
+  "updatedAt": "2026-11-21T15:50:00.211Z",
+  "defaultTileSize": 32,
+  "assets": {
+    "tileset_taverne": {
+      "schemaVersion": 1,
+      "id": "tileset_taverne",
+      "name": "Tileset Taverne (32×32)",
+      "type": "tileset",
+      "gridWidth": 32,
+      "gridHeight": 32,
+      "frameCount": 8,
+      "columns": 4,
+      "filePath": "assets/tileset_taverne.png",
+      "sourcePath": "assets/tileset_taverne.pxs.json",
+      "anchor": {
+        "x": 0,
+        "y": 0
+      },
+      "animations": {},
+      "hitboxes": [],
+      "tags": [
+        "taverne",
+        "tileset",
+        "interieur"
+      ]
+    },
+    "tileset_donjon": {
+      "schemaVersion": 1,
+      "id": "tileset_donjon",
+      "name": "Tileset Donjon (32×32)",
+      "type": "tileset",
+      "gridWidth": 32,
+      "gridHeight": 32,
+      "frameCount": 8,
+      "columns": 4,
+      "filePath": "assets/tileset_donjon.png",
+      "sourcePath": "assets/tileset_donjon.pxs.json",
+      "anchor": {
+        "x": 0,
+        "y": 0
+      },
+      "animations": {
+        "torch": {
+          "category": "vfx",
+          "frames": [
+            4,
+            5
+          ],
+          "fps": 6,
+          "loop": true
+        }
+      },
+      "hitboxes": [],
+      "tags": [
+        "donjon",
+        "tileset",
+        "pierre"
+      ]
+    },
+    "token_aventurier": {
+      "schemaVersion": 1,
+      "id": "token_aventurier",
+      "name": "Aventurier (Token Joueur)",
+      "type": "sprite",
+      "gridWidth": 32,
+      "gridHeight": 48,
+      "frameCount": 6,
+      "columns": 6,
+      "filePath": "assets/token_aventurier.png",
+      "sourcePath": "assets/token_aventurier.pxs.json",
+      "anchor": {
+        "x": 16,
+        "y": 48
+      },
+      "defaultCollider": {
+        "offsetX": -16,
+        "offsetY": -16,
+        "width": 32,
+        "height": 16
+      },
+      "animations": {
+        "idle": {
+          "category": "combat",
+          "frames": [
+            0,
+            1
+          ],
+          "fps": 4,
+          "loop": true
+        },
+        "walk": {
+          "category": "combat",
+          "frames": [
+            2,
+            3,
+            4,
+            5
+          ],
+          "fps": 8,
+          "loop": true
+        }
+      },
+      "hitboxes": [
+        {
+          "name": "feet",
+          "x": 0,
+          "y": 32,
+          "width": 32,
+          "height": 16
+        }
+      ],
+      "tags": [
+        "hero",
+        "joueur",
+        "token"
+      ]
+    },
+    "npc_femme_guichet": {
+      "schemaVersion": 1,
+      "id": "npc_femme_guichet",
+      "name": "Femme au guichet",
+      "type": "sprite",
+      "gridWidth": 32,
+      "gridHeight": 48,
+      "frameCount": 2,
+      "columns": 2,
+      "filePath": "assets/npc_femme_guichet.png",
+      "sourcePath": "assets/npc_femme_guichet.pxs.json",
+      "anchor": {
+        "x": 16,
+        "y": 48
+      },
+      "defaultCollider": {
+        "offsetX": -16,
+        "offsetY": -16,
+        "width": 32,
+        "height": 16
+      },
+      "animations": {
+        "idle": {
+          "category": "combat",
+          "frames": [
+            0,
+            1
+          ],
+          "fps": 3,
+          "loop": true
+        }
+      },
+      "hitboxes": [
+        {
+          "name": "feet",
+          "x": 0,
+          "y": 32,
+          "width": 32,
+          "height": 16
+        }
+      ],
+      "tags": [
+        "pnj",
+        "taverne",
+        "quete"
+      ]
+    },
+    "monster_sbire": {
+      "schemaVersion": 1,
+      "id": "monster_sbire",
+      "name": "Sbire de donjon",
+      "type": "sprite",
+      "gridWidth": 32,
+      "gridHeight": 32,
+      "frameCount": 2,
+      "columns": 2,
+      "filePath": "assets/monster_sbire.png",
+      "sourcePath": "assets/monster_sbire.pxs.json",
+      "anchor": {
+        "x": 16,
+        "y": 32
+      },
+      "defaultCollider": {
+        "offsetX": -12,
+        "offsetY": -14,
+        "width": 24,
+        "height": 14
+      },
+      "animations": {
+        "idle": {
+          "category": "combat",
+          "frames": [
+            0,
+            1
+          ],
+          "fps": 5,
+          "loop": true
+        }
+      },
+      "hitboxes": [
+        {
+          "name": "feet",
+          "x": 4,
+          "y": 18,
+          "width": 24,
+          "height": 14
+        }
+      ],
+      "tags": [
+        "monstre",
+        "sbire",
+        "donjon"
+      ]
+    },
+    "boss_monstre_donjon": {
+      "schemaVersion": 1,
+      "id": "boss_monstre_donjon",
+      "name": "Ogre Sombre (Boss)",
+      "type": "sprite",
+      "gridWidth": 64,
+      "gridHeight": 64,
+      "frameCount": 2,
+      "columns": 2,
+      "filePath": "assets/boss_monstre_donjon.png",
+      "sourcePath": "assets/boss_monstre_donjon.pxs.json",
+      "anchor": {
+        "x": 32,
+        "y": 64
+      },
+      "defaultCollider": {
+        "offsetX": -24,
+        "offsetY": -32,
+        "width": 48,
+        "height": 32
+      },
+      "animations": {
+        "idle": {
+          "category": "combat",
+          "frames": [
+            0,
+            1
+          ],
+          "fps": 3,
+          "loop": true
+        }
+      },
+      "hitboxes": [
+        {
+          "name": "feet",
+          "x": 8,
+          "y": 32,
+          "width": 48,
+          "height": 32
+        }
+      ],
+      "tags": [
+        "boss",
+        "monstre",
+        "donjon"
+      ]
+    }
+  },
+  "maps": {
+    "map_taverne": {
+      "id": "map_taverne",
+      "name": "Acte 1 — La Taverne",
+      "width": 16,
+      "height": 12,
+      "tileSize": 32,
+      "filePath": "maps/map_taverne.map.json"
+    },
+    "map_donjon": {
+      "id": "map_donjon",
+      "name": "Acte 2 — Le Donjon du Monstre",
+      "width": 26,
+      "height": 14,
+      "tileSize": 32,
+      "filePath": "maps/map_donjon.map.json"
+    }
+  },
+  "narratives": {
+    "quete_femme_guichet": {
+      "id": "quete_femme_guichet",
+      "name": "Briefing — Femme au guichet",
+      "filePath": "narratives/quete_femme_guichet.narrative.json"
+    },
+    "coffre_potion": {
+      "id": "coffre_potion",
+      "name": "Coffre du Couloir",
+      "filePath": "narratives/coffre_potion.narrative.json"
+    }
+  },
+  "databasePath": "database/rpg.db.json"
+}

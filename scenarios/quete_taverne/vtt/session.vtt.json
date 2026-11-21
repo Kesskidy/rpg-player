@@ -1,0 +1,199 @@
+{
+  "schemaVersion": 1,
+  "id": "quete_taverne",
+  "title": "La Prime de la Taverne",
+  "subtitle": "Acte 1 : La Taverne (briefing) → Acte 2 : Le Donjon (brouillard + Boss)",
+  "initialSceneId": "map_taverne",
+  "introAnnouncement": {
+    "kind": "event",
+    "title": "Acte 1 — La Prime de la Taverne",
+    "message": "Vous poussez les portes d’une taverne chaleureuse. Derrière le guichet, la réceptionniste vous fait signe : un contrat urgent vient d’être affiché !"
+  },
+  "introChatMessages": [
+    {
+      "channel": "system",
+      "senderName": "Système",
+      "senderRole": "system",
+      "text": "Scénario chargé : « La Prime de la Taverne » (Acte 1 sans brouillard · Acte 2 Donjon avec brouillard activé)."
+    },
+    {
+      "channel": "rp",
+      "senderName": "Femme au guichet",
+      "senderRole": "gm",
+      "text": "« Approchez, aventurier ! Un Ogre Sombre terrorise les environs depuis le donjon voisin. 120 pièces d’or de prime si vous l’éliminez ! »"
+    }
+  ],
+  "playerSheet": {
+    "characterName": "Aventurier",
+    "hp": 60,
+    "maxHp": 60,
+    "mp": 20,
+    "maxMp": 20,
+    "atk": 16,
+    "def": 4,
+    "gold": 25,
+    "inventory": [
+      {
+        "itemId": "epee_basique",
+        "quantity": 1
+      },
+      {
+        "itemId": "potion_soin",
+        "quantity": 1
+      }
+    ],
+    "notes": "Épée basique équipée (+4 ATK). Objectif : accepter la prime au guichet et vaincre l’Ogre Sombre."
+  },
+  "scenes": {
+    "map_taverne": {
+      "mapId": "map_taverne",
+      "label": "Acte 1 — La Taverne (Fog OFF)",
+      "fogEnabled": false,
+      "revealSpawnRadius": 0,
+      "gmNotes": "Laissez le joueur discuter avec la Femme au guichet (utilisez le bouton Dialogue Guichet ou jouez-la en RP), puis passez à l’Acte 2 quand il franchit la porte sud.",
+      "tokens": [
+        {
+          "name": "Aventurier",
+          "kind": "player",
+          "x": 8,
+          "y": 9,
+          "color": "#3C78B5",
+          "spriteAssetId": "token_aventurier",
+          "ownerRole": "player",
+          "hp": 60,
+          "maxHp": 60,
+          "mp": 20,
+          "maxMp": 20,
+          "lightRadius": 4,
+          "visibleToPlayers": true,
+          "isSolid": true,
+          "collider": {
+            "offsetX": -16,
+            "offsetY": -16,
+            "width": 32,
+            "height": 16
+          }
+        },
+        {
+          "name": "Femme au guichet",
+          "kind": "npc",
+          "x": 8,
+          "y": 3,
+          "color": "#DFA842",
+          "spriteAssetId": "npc_femme_guichet",
+          "ownerRole": "gm",
+          "hp": 35,
+          "maxHp": 35,
+          "mp": 10,
+          "maxMp": 10,
+          "lightRadius": 0,
+          "visibleToPlayers": true,
+          "isSolid": true,
+          "collider": {
+            "offsetX": -16,
+            "offsetY": -16,
+            "width": 32,
+            "height": 16
+          }
+        }
+      ]
+    },
+    "map_donjon": {
+      "mapId": "map_donjon",
+      "label": "Acte 2 — Le Donjon (Fog ON)",
+      "fogEnabled": true,
+      "revealSpawnRadius": 4,
+      "gmNotes": "Brouillard de guerre ACTIF : révélez le couloir (2 Sbires 32 PV + 1 coffre potion en 12,3), puis la Salle du Boss (Ogre Sombre 95 PV en 21,7).",
+      "tokens": [
+        {
+          "name": "Aventurier",
+          "kind": "player",
+          "x": 2,
+          "y": 7,
+          "color": "#3C78B5",
+          "spriteAssetId": "token_aventurier",
+          "ownerRole": "player",
+          "hp": 60,
+          "maxHp": 60,
+          "mp": 20,
+          "maxMp": 20,
+          "lightRadius": 4,
+          "visibleToPlayers": true,
+          "isSolid": true,
+          "collider": {
+            "offsetX": -16,
+            "offsetY": -16,
+            "width": 32,
+            "height": 16
+          }
+        },
+        {
+          "name": "Sbire de donjon #1",
+          "kind": "monster",
+          "x": 10,
+          "y": 6,
+          "color": "#3D9956",
+          "spriteAssetId": "monster_sbire",
+          "ownerRole": "gm",
+          "hp": 32,
+          "maxHp": 32,
+          "mp": 8,
+          "maxMp": 8,
+          "lightRadius": 0,
+          "visibleToPlayers": true,
+          "isSolid": true,
+          "collider": {
+            "offsetX": -12,
+            "offsetY": -14,
+            "width": 24,
+            "height": 14
+          }
+        },
+        {
+          "name": "Sbire de donjon #2",
+          "kind": "monster",
+          "x": 14,
+          "y": 8,
+          "color": "#3D9956",
+          "spriteAssetId": "monster_sbire",
+          "ownerRole": "gm",
+          "hp": 32,
+          "maxHp": 32,
+          "mp": 8,
+          "maxMp": 8,
+          "lightRadius": 0,
+          "visibleToPlayers": true,
+          "isSolid": true,
+          "collider": {
+            "offsetX": -12,
+            "offsetY": -14,
+            "width": 24,
+            "height": 14
+          }
+        },
+        {
+          "name": "Ogre Sombre (Boss)",
+          "kind": "monster",
+          "x": 21,
+          "y": 7,
+          "color": "#C83232",
+          "spriteAssetId": "boss_monstre_donjon",
+          "ownerRole": "gm",
+          "hp": 95,
+          "maxHp": 95,
+          "mp": 20,
+          "maxMp": 20,
+          "lightRadius": 0,
+          "visibleToPlayers": true,
+          "isSolid": true,
+          "collider": {
+            "offsetX": -24,
+            "offsetY": -32,
+            "width": 48,
+            "height": 32
+          }
+        }
+      ]
+    }
+  }
+}

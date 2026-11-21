@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "id": "tileset_donjon",
+  "name": "Tileset Donjon (32×32)",
+  "type": "tileset",
+  "gridWidth": 32,
+  "gridHeight": 32,
+  "frameCount": 8,
+  "columns": 4,
+  "filePath": "assets/tileset_donjon.png",
+  "sourcePath": "assets/tileset_donjon.pxs.json",
+  "anchor": {
+    "x": 0,
+    "y": 0
+  },
+  "animations": {
+    "torch": {
+      "category": "vfx",
+      "frames": [
+        4,
+        5
+      ],
+      "fps": 6,
+      "loop": true
+    }
+  },
+  "hitboxes": [],
+  "tags": [
+    "donjon",
+    "tileset",
+    "pierre"
+  ]
+}

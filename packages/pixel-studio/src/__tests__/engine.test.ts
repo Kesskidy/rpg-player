@@ -195,4 +195,70 @@ describe('pixel-studio core engine', () => {
     expect(hexToRgba('#14a02e80')).toEqual({ r: 20, g: 160, b: 46, a: 128 });
     expect(rgbaToHex({ r: 20, g: 160, b: 46, a: 255 })).toBe('#14a02e');
   });
+
+  it('commits draggable rectangle/square, ellipse/circle, and line shapes with atomic Undo/Redo', () => {
+    const engine = new PixelStudioEngine({ assetId: 'shapes_test', width: 16, height: 16 });
+    engine.setHexColor('#dfa842');
+
+    // 1. Hollow rectangle from (2,2) to (6,5)
+    expect(engine.commitShape('rect', { x: 2, y: 2 }, { x: 6, y: 5 }, { filled: false, lockAspect: false })).toBe(true);
+    let rendered = engine.renderActiveFrame();
+    expect(pixelAt(rendered, 16, 2, 2)[3]).toBe(255); // corner painted
+    expect(pixelAt(rendered, 16, 6, 5)[3]).toBe(255); // opposite corner painted
+    expect(pixelAt(rendered, 16, 4, 3)[3]).toBe(0); // interior hollow
+
+    // Undo removes the whole shape in 1 atomic step
+    expect(engine.undo()).toBe(true);
+    rendered = engine.renderActiveFrame();
+    expect(pixelAt(rendered, 16, 2, 2)[3]).toBe(0);
+
+    // 2. Aspect-locked (1:1) filled square from (1,1) toward (6,3) -> extends to (6,6)
+    expect(engine.commitShape('rect', { x: 1, y: 1 }, { x: 6, y: 3 }, { filled: true, lockAspect: true })).toBe(true);
+    rendered = engine.renderActiveFrame();
+    expect(pixelAt(rendered, 16, 6, 6)[3]).toBe(255);
+    expect(pixelAt(rendered, 16, 3, 3)[3]).toBe(255);
+
+    // 3. Filled circle on fresh undo -> corners outside radius remain transparent, center filled
+    engine.undo();
+    expect(engine.commitShape('ellipse', { x: 2, y: 2 }, { x: 10, y: 10 }, { filled: true, lockAspect: true })).toBe(true);
+    rendered = engine.renderActiveFrame();
+    expect(pixelAt(rendered, 16, 6, 6)[3]).toBe(255); // center inside circle
+    expect(pixelAt(rendered, 16, 2, 2)[3]).toBe(0); // bounding-box corner outside circle
+  });
+
+  it('uses lightweight metadata undo/redo commands without cloning pixel buffers (Bug #18)', () => {
+    const engine = new PixelStudioEngine({ assetId: 'lightweight_undo', width: 32, height: 32 });
+    const layer = engine.getActiveLayer()!;
+    const originalBuffer = layer.pixels;
+
+    expect(engine.setFrameDuration(0, 250)).toBe(true);
+    expect(engine.setLayerOpacity(layer.id, 0.4)).toBe(true);
+    expect(engine.setLayerVisibility(layer.id, false)).toBe(true);
+    expect(engine.setLayerLocked(layer.id, true)).toBe(true);
+    expect(engine.renameLayer(layer.id, 'Contours')).toBe(true);
+
+    expect(engine.getActiveLayer()!.name).toBe('Contours');
+    expect(engine.getActiveLayer()!.locked).toBe(true);
+    expect(engine.getActiveLayer()!.visible).toBe(false);
+    expect(engine.getActiveLayer()!.opacity).toBe(0.4);
+    expect(engine.getActiveFrame().durationMs).toBe(250);
+
+    // Undo all 5 metadata edits: values revert AND the underlying RGBA buffer was NEVER cloned/replaced!
+    expect(engine.undo()).toBe(true);
+    expect(engine.getActiveLayer()!.name).toBe('Calque 1');
+    expect(engine.undo()).toBe(true);
+    expect(engine.getActiveLayer()!.locked).toBe(false);
+    expect(engine.undo()).toBe(true);
+    expect(engine.getActiveLayer()!.visible).toBe(true);
+    expect(engine.undo()).toBe(true);
+    expect(engine.getActiveLayer()!.opacity).toBe(1);
+    expect(engine.undo()).toBe(true);
+    expect(engine.getActiveFrame().durationMs).toBe(125);
+    expect(engine.getActiveLayer()!.pixels).toBe(originalBuffer);
+
+    // Redo restores cleanly
+    expect(engine.redo()).toBe(true);
+    expect(engine.getActiveFrame().durationMs).toBe(250);
+    expect(engine.getActiveLayer()!.pixels).toBe(originalBuffer);
+  });
 });

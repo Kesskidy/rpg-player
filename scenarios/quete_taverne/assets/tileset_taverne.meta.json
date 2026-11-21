@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "tileset_taverne",
+  "name": "Tileset Taverne (32×32)",
+  "type": "tileset",
+  "gridWidth": 32,
+  "gridHeight": 32,
+  "frameCount": 8,
+  "columns": 4,
+  "filePath": "assets/tileset_taverne.png",
+  "sourcePath": "assets/tileset_taverne.pxs.json",
+  "anchor": {
+    "x": 0,
+    "y": 0
+  },
+  "animations": {},
+  "hitboxes": [],
+  "tags": [
+    "taverne",
+    "tileset",
+    "interieur"
+  ]
+}

@@ -188,4 +188,72 @@ describe('rpg-engine headless core (v2 dissociated rendering & collisions)', () 
     expect(migrated.events[0]?.isSolid).toBe(true);
     expect(migrated.events[0]?.plane).toBe('y_sorted');
   });
+
+  it('restores a valid activeLayerId after undo of addLayer (Bug #11)', () => {
+    const map = createEmptyTileMap({
+      id: 'map_layers',
+      name: 'Calques',
+      width: 6,
+      height: 6,
+      tileSize: 32,
+    });
+    const editor = new MapEditorEngine(map);
+    const added = editor.addLayer('Temporaire', 'y_sorted');
+    expect(editor.getState().activeLayerId).toBe(added.id);
+
+    // Undo removes the newly added layer -> activeLayerId MUST fall back to an existing layer
+    expect(editor.undo()).toBe(true);
+    expect(editor.getMap().layers.some((l) => l.id === editor.getState().activeLayerId)).toBe(true);
+
+    // Painting immediately after undo succeeds on the restored valid layer!
+    editor.setSelectedTile({ assetId: 'tileset_grass', tileX: 0, tileY: 0 });
+    expect(editor.applyAtTile(1, 1)).toBe(true);
+  });
+
+  it('refuses moving an event onto a tile already occupied by another event (Bug #12)', () => {
+    const map = createEmptyTileMap({
+      id: 'map_events',
+      name: 'Events',
+      width: 6,
+      height: 6,
+      tileSize: 32,
+    });
+    const editor = new MapEditorEngine(map);
+    const evA = {
+      id: 'ev_a',
+      name: 'PNJ A',
+      kind: 'npc' as const,
+      trigger: 'interact' as const,
+      x: 1,
+      y: 1,
+      spriteAssetId: null,
+      narrativeId: null,
+      isSolid: true,
+      plane: 'y_sorted' as const,
+    };
+    const evB = {
+      id: 'ev_b',
+      name: 'PNJ B',
+      kind: 'npc' as const,
+      trigger: 'interact' as const,
+      x: 2,
+      y: 2,
+      spriteAssetId: null,
+      narrativeId: null,
+      isSolid: true,
+      plane: 'y_sorted' as const,
+    };
+
+    expect(editor.upsertEvent(evA)).toBe(true);
+    expect(editor.upsertEvent(evB)).toBe(true);
+    // Attempting to move evB onto evA's tile (1, 1) must be refused without overwriting evA!
+    expect(editor.upsertEvent({ ...evB, x: 1, y: 1 })).toBe(false);
+    expect(editor.getMap().events).toHaveLength(2);
+    expect(editor.getEventAt(1, 1)?.id).toBe('ev_a');
+    expect(editor.getEventAt(2, 2)?.id).toBe('ev_b');
+
+    // Updating evB in-place or moving to an empty tile succeeds
+    expect(editor.upsertEvent({ ...evB, name: 'PNJ B Modifié', x: 3, y: 3 })).toBe(true);
+    expect(editor.getEventAt(3, 3)?.name).toBe('PNJ B Modifié');
+  });
 });

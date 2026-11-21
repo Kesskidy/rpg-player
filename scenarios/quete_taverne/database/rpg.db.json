@@ -1,0 +1,234 @@
+{
+  "schemaVersion": 1,
+  "combatConfig": {
+    "defaultMode": "turn_based_animated",
+    "allowModeSwitchInPreview": true,
+    "dynamicSettings": {
+      "heroAttackRange": 48,
+      "heroAttackCooldownMs": 420,
+      "defaultProjectileSpeed": 230
+    }
+  },
+  "hero": {
+    "name": "Aventurier",
+    "stats": {
+      "maxHp": 60,
+      "maxMp": 20,
+      "atk": 12,
+      "def": 4
+    },
+    "skillIds": [
+      "coup_taille",
+      "garde_fer",
+      "etincelle"
+    ],
+    "startingItems": [
+      {
+        "itemId": "epee_basique",
+        "quantity": 1
+      },
+      {
+        "itemId": "potion_soin",
+        "quantity": 1
+      }
+    ],
+    "maxSlots": 16,
+    "maxWeight": 40
+  },
+  "characterSheets": {
+    "sheet_aventurier": {
+      "id": "sheet_aventurier",
+      "name": "Aventurier",
+      "characterClass": "Mercenaire",
+      "role": "player_template",
+      "level": 2,
+      "spriteAssetId": "token_aventurier",
+      "stats": {
+        "maxHp": 60,
+        "maxMp": 20,
+        "atk": 16,
+        "def": 4
+      },
+      "attributes": {
+        "str": 14,
+        "dex": 12,
+        "int": 10,
+        "cha": 11
+      },
+      "skillIds": [
+        "coup_taille",
+        "garde_fer",
+        "etincelle"
+      ],
+      "equipment": {
+        "weapon": "epee_basique"
+      },
+      "inventory": [
+        {
+          "itemId": "epee_basique",
+          "quantity": 1
+        },
+        {
+          "itemId": "potion_soin",
+          "quantity": 1
+        }
+      ],
+      "gold": 25,
+      "bio": "Chasseur de primes fraîchement arrivé à la Taverne pour répondre au contrat de l’Ogre Sombre.",
+      "notes": "Épée basique équipée (+4 ATK inclus -> 16 ATK). Garder la potion pour la salle du Boss !"
+    },
+    "sheet_femme_guichet": {
+      "id": "sheet_femme_guichet",
+      "name": "Femme au guichet",
+      "characterClass": "Réceptionniste de Guilde",
+      "role": "npc",
+      "level": 3,
+      "spriteAssetId": "npc_femme_guichet",
+      "stats": {
+        "maxHp": 35,
+        "maxMp": 10,
+        "atk": 6,
+        "def": 3
+      },
+      "attributes": {
+        "str": 8,
+        "dex": 11,
+        "int": 14,
+        "cha": 16
+      },
+      "skillIds": [],
+      "equipment": {},
+      "inventory": [
+        {
+          "itemId": "potion_soin",
+          "quantity": 3
+        }
+      ],
+      "gold": 120,
+      "bio": "Gère les primes et les contrats d’aventuriers depuis le comptoir de la Taverne.",
+      "notes": "Prime promise : 120 Or à la défaite de l’Ogre Sombre."
+    }
+  },
+  "items": {
+    "epee_basique": {
+      "id": "epee_basique",
+      "name": "Épée basique",
+      "description": "Une lame fiable d’aventurier (+4 ATK).",
+      "category": "equipment",
+      "stackable": false,
+      "weight": 3,
+      "slot": "weapon",
+      "statBonus": {
+        "atk": 4
+      }
+    },
+    "potion_soin": {
+      "id": "potion_soin",
+      "name": "Potion de soin",
+      "description": "Restaure 30 PV immédiatement.",
+      "category": "consumable",
+      "stackable": true,
+      "weight": 0.5,
+      "healHp": 30
+    },
+    "trophee_ogre": {
+      "id": "trophee_ogre",
+      "name": "Corne d’Ogre Sombre",
+      "description": "Preuve de victoire à rapporter à la Femme au guichet.",
+      "category": "quest",
+      "stackable": false,
+      "weight": 1.5
+    }
+  },
+  "skills": {
+    "coup_taille": {
+      "id": "coup_taille",
+      "name": "Coup de taille",
+      "description": "Frappe puissante à l’épée (+8 puissance).",
+      "mpCost": 5,
+      "power": 18
+    },
+    "garde_fer": {
+      "id": "garde_fer",
+      "name": "Garde de fer",
+      "description": "Renforce la défense pendant 2 tours.",
+      "mpCost": 4,
+      "power": 0,
+      "statusEffect": {
+        "kind": "shield",
+        "turns": 2,
+        "potency": 4
+      }
+    },
+    "etincelle": {
+      "id": "etincelle",
+      "name": "Étincelle arcanique",
+      "description": "Projectile de feu léger qui brûle 2 tours.",
+      "mpCost": 6,
+      "power": 14,
+      "statusEffect": {
+        "kind": "burn",
+        "turns": 2,
+        "potency": 4
+      }
+    },
+    "coup_massue": {
+      "id": "coup_massue",
+      "name": "Écrasement de massue",
+      "description": "Lourde attaque de l’Ogre Sombre.",
+      "mpCost": 6,
+      "power": 18
+    }
+  },
+  "enemies": {
+    "sbire_donjon": {
+      "id": "sbire_donjon",
+      "name": "Sbire de donjon",
+      "spriteAssetId": "monster_sbire",
+      "stats": {
+        "maxHp": 32,
+        "maxMp": 8,
+        "atk": 9,
+        "def": 2
+      },
+      "skillIds": [],
+      "rewardItemId": null,
+      "rewardGold": 15,
+      "aiProfile": {
+        "behavior": "melee",
+        "aggroRange": 320,
+        "attackRange": 38,
+        "preferredRange": 38,
+        "retreatRange": 0,
+        "moveSpeed": 88,
+        "attackCooldownMs": 1150
+      }
+    },
+    "boss_ogre_sombre": {
+      "id": "boss_ogre_sombre",
+      "name": "Ogre Sombre (Boss)",
+      "spriteAssetId": "boss_monstre_donjon",
+      "stats": {
+        "maxHp": 95,
+        "maxMp": 20,
+        "atk": 14,
+        "def": 4
+      },
+      "skillIds": [
+        "coup_massue"
+      ],
+      "rewardItemId": "trophee_ogre",
+      "rewardGold": 120,
+      "aiProfile": {
+        "behavior": "hybrid",
+        "aggroRange": 380,
+        "attackRange": 52,
+        "preferredRange": 145,
+        "retreatRange": 60,
+        "moveSpeed": 68,
+        "attackCooldownMs": 1400,
+        "projectileSpeed": 195
+      }
+    }
+  }
+}

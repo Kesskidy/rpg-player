@@ -1,6 +1,11 @@
 import { useState } from 'react';
 import type { MapMeta, ProjectManifest } from '@rpg-player/core-types';
-import { PixelCrownIcon, PixelDiceIcon, PixelPlayIcon } from '../ui/PixelIcons';
+import {
+  PixelCrownIcon,
+  PixelDiceIcon,
+  PixelPlayIcon,
+  PixelSparkIcon,
+} from '../ui/PixelIcons';
 
 export interface CreateRoomForm {
   serverUrl: string;
@@ -24,6 +29,7 @@ interface VttLobbyProps {
   onCreateRoom: (form: CreateRoomForm) => void;
   onJoinRoom: (form: JoinRoomForm) => void;
   onStartLocalDemo: (gmName: string, playerName: string, selectedMapId: string | null) => void;
+  onLoadTavernScenario: () => void;
 }
 
 export function VttLobby({
@@ -33,6 +39,7 @@ export function VttLobby({
   onCreateRoom,
   onJoinRoom,
   onStartLocalDemo,
+  onLoadTavernScenario,
 }: VttLobbyProps) {
   const projectMaps: MapMeta[] = project?.maps ? Object.values(project.maps) : [];
 
@@ -69,6 +76,36 @@ export function VttLobby({
             {errorMessage}
           </div>
         )}
+
+        {/* Featured One-Click JDR Scenario: La Prime de la Taverne */}
+        <div className="pixel-panel flex flex-col items-center justify-between gap-4 border-dnd-gold p-4 sm:flex-row">
+          <div>
+            <div className="flex items-center gap-2">
+              <PixelCrownIcon size={16} />
+              <span className="font-pixel text-[10px] font-bold uppercase tracking-wider text-dnd-gold">
+                Scénario JDR Prêt-à-Jouer (2 Actes · Compatible RPG Engine)
+              </span>
+            </div>
+            <h3 className="mt-1 font-pixel text-sm font-bold text-dnd-parchment">
+              La Prime de la Taverne
+            </h3>
+            <p className="mt-1 text-[11px] text-dnd-muted">
+              Acte 1 : La Taverne (briefing de la Femme au guichet, sans brouillard) → Acte 2 : Le
+              Donjon (brouillard de guerre actif, coffre potion, 2 sbires et Boss Ogre Sombre 64×64).
+            </p>
+          </div>
+          <button
+            type="button"
+            disabled={connecting}
+            onClick={onLoadTavernScenario}
+            className="pixel-btn pixel-btn-gold flex shrink-0 items-center gap-2 px-4 py-2.5 text-xs font-bold disabled:opacity-50"
+          >
+            <PixelSparkIcon size={15} />
+            <span>
+              {connecting ? 'Chargement...' : 'Charger le scénario : La Prime de la Taverne'}
+            </span>
+          </button>
+        </div>
 
         {/* Quick Local Multi-Role Demo Banner */}
         <div className="flex flex-col items-center justify-between gap-3 rounded-xl border border-emerald-500/35 bg-emerald-950/25 p-4 sm:flex-row">

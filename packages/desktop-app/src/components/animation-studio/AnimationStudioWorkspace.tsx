@@ -14,7 +14,11 @@ import {
   type OnionSkinOptions,
   type TimelinePlaybackSpeed,
 } from '@rpg-player/pixel-studio';
-import { loadPixelAssetSource, savePixelAsset } from '../../storage/project-service';
+import {
+  formatSaveFeedback,
+  loadPixelAssetSource,
+  savePixelAsset,
+} from '../../storage/project-service';
 import { LayersPanel } from '../pixel-studio/LayersPanel';
 import { PalettePanel } from '../pixel-studio/PalettePanel';
 import { PixelCanvas } from '../pixel-studio/PixelCanvas';
@@ -223,6 +227,9 @@ export function AnimationStudioWorkspace({
       if (event.ctrlKey || event.metaKey || event.altKey) return;
       if (key === 'b') engine.setTool('pencil');
       else if (key === 'e') engine.setTool('eraser');
+      else if (key === 'r') engine.setTool('rect');
+      else if (key === 'o') engine.setTool('ellipse');
+      else if (key === 'l') engine.setTool('line');
       else if (key === 'g') engine.setShowGrid(!engine.getState().showGrid);
     }
     window.addEventListener('keydown', handleKeyDown);
@@ -328,7 +335,10 @@ export function AnimationStudioWorkspace({
       onProjectUpdated(result.manifest);
       setFeedback({
         kind: 'ok',
-        text: `Spritesheet & AnimationClip « ${clipName} » exportés (${result.meta.frameCount} frames → ${result.meta.filePath}).`,
+        text: formatSaveFeedback(
+          storage,
+          `Spritesheet & AnimationClip « ${clipName} » exportés (${result.meta.frameCount} frames → ${result.meta.filePath}).`,
+        ),
       });
     } catch (error) {
       setFeedback({

@@ -119,6 +119,68 @@ export class DocumentFramesSnapshotCommand implements HistoryCommand {
   }
 }
 
+export class FrameDurationCommand implements HistoryCommand {
+  readonly label = 'Durée frame';
+  private readonly frameId: string;
+  private readonly beforeDurationMs: number;
+  private readonly afterDurationMs: number;
+
+  constructor(frameId: string, beforeDurationMs: number, afterDurationMs: number) {
+    this.frameId = frameId;
+    this.beforeDurationMs = beforeDurationMs;
+    this.afterDurationMs = afterDurationMs;
+  }
+
+  apply(doc: PixelDocumentRuntime): void {
+    const frame = doc.frames.find((f) => f.id === this.frameId);
+    if (frame) frame.durationMs = this.afterDurationMs;
+  }
+
+  revert(doc: PixelDocumentRuntime): void {
+    const frame = doc.frames.find((f) => f.id === this.frameId);
+    if (frame) frame.durationMs = this.beforeDurationMs;
+  }
+}
+
+export type LayerMetadataKey = 'visible' | 'opacity' | 'locked' | 'name';
+
+export class LayerMetadataCommand<K extends LayerMetadataKey = LayerMetadataKey>
+  implements HistoryCommand
+{
+  readonly label: string;
+  private readonly frameIndex: number;
+  private readonly layerId: string;
+  private readonly key: K;
+  private readonly beforeValue: PixelLayerRuntime[K];
+  private readonly afterValue: PixelLayerRuntime[K];
+
+  constructor(
+    label: string,
+    frameIndex: number,
+    layerId: string,
+    key: K,
+    beforeValue: PixelLayerRuntime[K],
+    afterValue: PixelLayerRuntime[K],
+  ) {
+    this.label = label;
+    this.frameIndex = frameIndex;
+    this.layerId = layerId;
+    this.key = key;
+    this.beforeValue = beforeValue;
+    this.afterValue = afterValue;
+  }
+
+  apply(doc: PixelDocumentRuntime): void {
+    const layer = doc.frames[this.frameIndex]?.layers.find((l) => l.id === this.layerId);
+    if (layer) layer[this.key] = this.afterValue;
+  }
+
+  revert(doc: PixelDocumentRuntime): void {
+    const layer = doc.frames[this.frameIndex]?.layers.find((l) => l.id === this.layerId);
+    if (layer) layer[this.key] = this.beforeValue;
+  }
+}
+
 export class HistoryStack {
   private readonly maxEntries: number;
   private readonly undoStack: HistoryCommand[] = [];

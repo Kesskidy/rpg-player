@@ -10,10 +10,15 @@ import {
   type VttToken,
 } from '@rpg-player/core-types';
 import { rollDiceFormula } from './dice.js';
+import { validateVttClientMessage } from './validation.js';
+
+const MAX_PLAYER_MOVE_DISTANCE = 6;
 
 interface InternalRoom {
   state: VttRoomState;
   password: string | null;
+  sessionTokens: Map<string, string>;
+  lastActivityMs: number;
 }
 
 export interface RoomActionOutcome {
@@ -23,6 +28,7 @@ export interface RoomActionOutcome {
   roomCode?: string;
   participantId?: string;
   role?: VttRole;
+  sessionToken?: string;
   chatMessage?: VttChatMessage;
   broadcastState?: boolean;
 }
@@ -127,8 +133,22 @@ export class VttRoomManager {
           })
           .map((t) => ({ ...t, ownerIds: [...t.ownerIds] }));
 
+    // Anti-cheat (Bug #9): hide map events located in unrevealed fog cells from non-GM clients
+    const projectedMap = isGm
+      ? state.activeMap
+      : {
+          ...state.activeMap,
+          events: (state.activeMap.events ?? []).filter((ev) => {
+            if (!state.fogEnabled) return true;
+            const fogVal = state.fogOfWar[ev.y * mapW + ev.x] ?? 0;
+            if (fogVal === 0) return true;
+            return isTileLitByPlayer(ev.x, ev.y);
+          }),
+        };
+
     return {
       ...state,
+      activeMap: projectedMap,
       participants: state.participants.map((p) => ({ ...p })),
       fogOfWar: [...state.fogOfWar],
       tokens: visibleTokens,
@@ -146,8 +166,18 @@ export class VttRoomManager {
   handleMessage(
     roomCode: string | null,
     participantId: string | null,
-    msg: VttClientMessage,
+    rawMsg: VttClientMessage | unknown,
   ): RoomActionOutcome {
+    const validated = validateVttClientMessage(rawMsg);
+    if (!validated.ok) {
+      return {
+        ok: false,
+        errorCode: validated.errorCode,
+        errorMessage: validated.errorMessage,
+      };
+    }
+    const msg = validated.msg;
+
     if (msg.type === 'create_room') {
       return this.createRoom(msg);
     }
@@ -172,6 +202,7 @@ export class VttRoomManager {
     if (!participant) {
       return { ok: false, errorCode: 'UNAUTHORIZED', errorMessage: 'Participant inconnu.' };
     }
+    room.lastActivityMs = Date.now();
 
     switch (msg.type) {
       case 'move_token':
@@ -194,6 +225,12 @@ export class VttRoomManager {
         return this.rollDice(room, participant, msg.formula, msg.label);
       case 'gm_trigger_event':
         return this.triggerEvent(room, participant, msg.kind, msg.title, msg.message);
+      default:
+        return {
+          ok: false,
+          errorCode: 'UNKNOWN_MESSAGE',
+          errorMessage: 'Type de message inconnu.',
+        };
     }
   }
 
@@ -203,7 +240,23 @@ export class VttRoomManager {
     const participant = room.state.participants.find((p) => p.id === participantId);
     if (!participant) return false;
     participant.connected = false;
+    room.lastActivityMs = Date.now();
     return true;
+  }
+
+  /**
+   * Removes empty/abandoned rooms where all participants are disconnected for at least `maxIdleMs`.
+   */
+  pruneIdleRooms(maxIdleMs = 30 * 60 * 1000, nowMs = Date.now()): string[] {
+    const removed: string[] = [];
+    for (const [code, room] of this.rooms.entries()) {
+      const anyoneConnected = room.state.participants.some((p) => p.connected);
+      if (!anyoneConnected && nowMs - room.lastActivityMs >= maxIdleMs) {
+        this.rooms.delete(code);
+        removed.push(code);
+      }
+    }
+    return removed;
   }
 
   private pushSystemChat(room: InternalRoom, text: string): VttChatMessage {
@@ -272,9 +325,12 @@ export class VttRoomManager {
       activeAnnouncement: null,
     };
 
+    const sessionToken = nextId('ses');
     const room: InternalRoom = {
       state,
       password: msg.password?.trim() || null,
+      sessionTokens: new Map([[sessionToken, gmId]]),
+      lastActivityMs: Date.now(),
     };
 
     this.pushSystemChat(room, `Salon « ${state.roomName} » ouvert par ${gmName} (Code : ${roomCode}).`);
@@ -285,6 +341,7 @@ export class VttRoomManager {
       roomCode,
       participantId: gmId,
       role: 'gm',
+      sessionToken,
       broadcastState: true,
     };
   }
@@ -309,7 +366,31 @@ export class VttRoomManager {
       };
     }
 
+    room.lastActivityMs = Date.now();
+
+    // Reconnection via sessionToken reclaims the existing participant without duplicating tokens/sheets (Bug #10)
+    if (msg.sessionToken) {
+      const existingId = room.sessionTokens.get(msg.sessionToken);
+      const existingParticipant = existingId
+        ? room.state.participants.find((p) => p.id === existingId)
+        : undefined;
+      if (existingParticipant) {
+        existingParticipant.connected = true;
+        this.pushSystemChat(room, `${existingParticipant.name} s’est reconnecté(e).`);
+        return {
+          ok: true,
+          roomCode: code,
+          participantId: existingParticipant.id,
+          role: existingParticipant.role,
+          sessionToken: msg.sessionToken,
+          broadcastState: true,
+        };
+      }
+    }
+
     const playerId = nextId('plr');
+    const sessionToken = nextId('ses');
+    room.sessionTokens.set(sessionToken, playerId);
     const playerName = msg.playerName.trim() || `Joueur ${room.state.participants.length}`;
     const participant: VttParticipant = {
       id: playerId,
@@ -366,6 +447,7 @@ export class VttRoomManager {
       roomCode: code,
       participantId: playerId,
       role: 'player',
+      sessionToken,
       broadcastState: true,
     };
   }
@@ -409,8 +491,17 @@ export class VttRoomManager {
       return { ok: false, errorCode: 'OUT_OF_BOUNDS', errorMessage: 'Case hors de la carte.' };
     }
 
-    // Players obey independent collisionLayer AND solid tokens; GM can place tokens anywhere
+    // Players obey distance limit, collisionLayer AND solid tokens; GM can place tokens anywhere
     if (!isGm) {
+      const chebyshevDist = Math.max(Math.abs(x - token.x), Math.abs(y - token.y));
+      if (chebyshevDist > MAX_PLAYER_MOVE_DISTANCE) {
+        return {
+          ok: false,
+          errorCode: 'MOVE_TOO_FAR',
+          errorMessage: `Déplacement trop lointain (max ${MAX_PLAYER_MOVE_DISTANCE} cases par action).`,
+        };
+      }
+
       if ((map.collisionLayer.cells[y * map.width + x] ?? 0) !== 0) {
         return {
           ok: false,
@@ -427,10 +518,11 @@ export class VttRoomManager {
           other.y === y,
       );
       if (blockingToken) {
+        // Generic message prevents leaking names of hidden/fogged tokens (Bug #9)
         return {
           ok: false,
           errorCode: 'TOKEN_BLOCKED',
-          errorMessage: `Case occupée par ${blockingToken.name}.`,
+          errorMessage: 'Case bloquée.',
         };
       }
     }

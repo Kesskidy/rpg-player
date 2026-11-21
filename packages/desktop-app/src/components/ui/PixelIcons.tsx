@@ -283,3 +283,45 @@ export function PixelSparkIcon({ size = 16, className }: PixelIconProps) {
     </PixelSvg>
   );
 }
+
+/** Pixel Art Rectangle / Square Shape */
+export function PixelRectIcon({ size = 16, className }: PixelIconProps) {
+  return (
+    <PixelSvg size={size} className={className}>
+      <rect x="2" y="3" width="12" height="2" fill="currentColor" />
+      <rect x="2" y="11" width="12" height="2" fill="currentColor" />
+      <rect x="2" y="3" width="2" height="10" fill="currentColor" />
+      <rect x="12" y="3" width="2" height="10" fill="currentColor" />
+    </PixelSvg>
+  );
+}
+
+/** Pixel Art Circle / Ellipse Shape */
+export function PixelCircleIcon({ size = 16, className }: PixelIconProps) {
+  return (
+    <PixelSvg size={size} className={className}>
+      <rect x="5" y="2" width="6" height="2" fill="currentColor" />
+      <rect x="5" y="12" width="6" height="2" fill="currentColor" />
+      <rect x="2" y="5" width="2" height="6" fill="currentColor" />
+      <rect x="12" y="5" width="2" height="6" fill="currentColor" />
+      <rect x="3" y="3" width="2" height="2" fill="currentColor" />
+      <rect x="11" y="3" width="2" height="2" fill="currentColor" />
+      <rect x="3" y="11" width="2" height="2" fill="currentColor" />
+      <rect x="11" y="11" width="2" height="2" fill="currentColor" />
+    </PixelSvg>
+  );
+}
+
+/** Pixel Art Diagonal Line Shape */
+export function PixelLineIcon({ size = 16, className }: PixelIconProps) {
+  return (
+    <PixelSvg size={size} className={className}>
+      <rect x="2" y="12" width="2" height="2" fill="currentColor" />
+      <rect x="4" y="10" width="2" height="2" fill="currentColor" />
+      <rect x="6" y="8" width="2" height="2" fill="currentColor" />
+      <rect x="8" y="6" width="2" height="2" fill="currentColor" />
+      <rect x="10" y="4" width="2" height="2" fill="currentColor" />
+      <rect x="12" y="2" width="2" height="2" fill="currentColor" />
+    </PixelSvg>
+  );
+}

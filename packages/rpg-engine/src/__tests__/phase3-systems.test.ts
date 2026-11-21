@@ -111,4 +111,68 @@ describe('Phase 3 RPG systems & narrative interpreter', () => {
     const found = sim.findInteractableEvent();
     expect(found?.id).toBe('npc_guard');
   });
+
+  it('preserves equipped items and prevents duplication across consecutive VTT inventory roundtrips (Bug #3)', () => {
+    const db = createDefaultRpgDatabase();
+    let sheetSlots = [
+      { itemId: 'epee_fer', quantity: 1 },
+      { itemId: 'potion_soin', quantity: 1 },
+    ];
+    let sheetGold = 10;
+
+    // Simulate 3 consecutive VTT combats where hero equips sword and syncs flat slots back
+    for (let round = 0; round < 3; round += 1) {
+      const inv = new InventorySystem(db);
+      inv.replaceFromSnapshot(sheetSlots, sheetGold);
+      expect(inv.getItemCount('epee_fer')).toBe(1);
+      expect(inv.getItemCount('potion_soin')).toBe(1);
+
+      expect(inv.equipItem('epee_fer').ok).toBe(true);
+      sheetSlots = inv.toFlatSlots();
+      sheetGold = inv.getGold();
+    }
+
+    expect(sheetSlots.filter((s) => s.itemId === 'epee_fer')).toHaveLength(1);
+    expect(sheetSlots.find((s) => s.itemId === 'potion_soin')?.quantity).toBe(1);
+  });
+
+  it('tracks equipped weight and enforces maxSlots on equip/unequip (Bug #17)', () => {
+    const db = createDefaultRpgDatabase();
+    db.hero.maxSlots = 1;
+    db.hero.maxWeight = 5;
+    db.hero.startingItems = [];
+    db.items['dague_stack'] = {
+      id: 'dague_stack',
+      name: 'Dague empilable',
+      description: 'Test',
+      category: 'equipment',
+      slot: 'weapon',
+      stackable: true,
+      weight: 2,
+      statBonus: { atk: 2 },
+    };
+
+    const inv = new InventorySystem(db);
+    const swordWeight = db.items['epee_fer']!.weight;
+    expect(inv.addItem('epee_fer', 1).ok).toBe(true);
+    expect(inv.equipItem('epee_fer').ok).toBe(true);
+    // Equipped sword still counts toward carried weight, so another sword cannot be added
+    expect(inv.getTotalWeight()).toBe(swordWeight);
+    expect(inv.addItem('epee_fer', 1).ok).toBe(false);
+
+    // Add a stack of 2 daggers (weight 2? make maxWeight bigger for slot test)
+    const db2 = createDefaultRpgDatabase();
+    db2.hero.maxSlots = 1;
+    db2.hero.maxWeight = 50;
+    db2.hero.startingItems = [];
+    db2.items['dague_stack'] = db.items['dague_stack']!;
+    const inv2 = new InventorySystem(db2);
+    expect(inv2.addItem('epee_fer', 1).ok).toBe(true);
+    expect(inv2.equipItem('epee_fer').ok).toBe(true);
+    expect(inv2.addItem('dague_stack', 2).ok).toBe(true);
+    // Bag is at 1/1 slots (dague_stack x2). Swapping with equipped epee_fer would require 2 slots -> refused!
+    expect(inv2.equipItem('dague_stack').ok).toBe(false);
+    expect(inv2.getSlots()).toHaveLength(1);
+    expect(inv2.getEquipped().weapon).toBe('epee_fer');
+  });
 });

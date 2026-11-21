@@ -20,6 +20,16 @@ import { normalizeTileMapData } from '@rpg-player/rpg-engine';
 
 export const RPG_DATABASE_FILENAME = `${PROJECT_DIRS.database}/rpg.db.json` as const;
 
+export function formatSaveFeedback(
+  storage: ProjectStorageAdapter,
+  baseMessage: string,
+): string {
+  if (storage.mode === 'memory') {
+    return `${baseMessage} — Mode mémoire temporaire : sera perdu à la fermeture (ouvrez un dossier projet pour enregistrer sur disque).`;
+  }
+  return baseMessage;
+}
+
 function sanitizeSlug(raw: string, fallback: string): string {
   return (
     raw
@@ -86,6 +96,44 @@ export async function openProject(
   };
 }
 
+const manifestLocks = new WeakMap<ProjectStorageAdapter, Promise<unknown>>();
+
+function runSerializedManifestUpdate<T>(
+  adapter: ProjectStorageAdapter,
+  task: () => Promise<T>,
+): Promise<T> {
+  const prev = manifestLocks.get(adapter) ?? Promise.resolve();
+  const next = prev.then(task, task);
+  manifestLocks.set(
+    adapter,
+    next.then(
+      () => undefined,
+      () => undefined,
+    ),
+  );
+  return next;
+}
+
+async function mergeAndSaveManifest(
+  adapter: ProjectStorageAdapter,
+  fallbackManifest: ProjectManifest,
+  mutate: (latest: ProjectManifest) => ProjectManifest,
+): Promise<ProjectManifest> {
+  return runSerializedManifestUpdate(adapter, async () => {
+    let base = fallbackManifest;
+    try {
+      const onDisk = await openProject(adapter);
+      if (onDisk && onDisk.id === fallbackManifest.id) {
+        base = onDisk;
+      }
+    } catch {
+      // Fall back to provided manifest if disk manifest cannot be read yet
+    }
+    const next = mutate(base);
+    return saveProjectManifest(adapter, next);
+  });
+}
+
 export async function saveProjectManifest(
   adapter: ProjectStorageAdapter,
   manifest: ProjectManifest,
@@ -124,13 +172,13 @@ export async function savePixelAsset(
     JSON.stringify(exported.meta, null, 2),
   );
 
-  const updatedManifest = await saveProjectManifest(adapter, {
-    ...manifest,
+  const updatedManifest = await mergeAndSaveManifest(adapter, manifest, (latest) => ({
+    ...latest,
     assets: {
-      ...manifest.assets,
+      ...latest.assets,
       [exported.meta.id]: exported.meta,
     },
-  });
+  }));
 
   return {
     manifest: updatedManifest,
@@ -177,13 +225,13 @@ export async function saveMap(
   await adapter.ensureDir(PROJECT_DIRS.maps);
   await adapter.writeText(filePath, JSON.stringify(normalizedMap, null, 2));
 
-  const updatedManifest = await saveProjectManifest(adapter, {
-    ...manifest,
+  const updatedManifest = await mergeAndSaveManifest(adapter, manifest, (latest) => ({
+    ...latest,
     maps: {
-      ...(manifest.maps ?? {}),
+      ...(latest.maps ?? {}),
       [safeId]: meta,
     },
-  });
+  }));
 
   return { manifest: updatedManifest, meta };
 }
@@ -223,13 +271,13 @@ export async function saveNarrative(
   await adapter.ensureDir(PROJECT_DIRS.narratives);
   await adapter.writeText(filePath, JSON.stringify(normalized, null, 2));
 
-  const updatedManifest = await saveProjectManifest(adapter, {
-    ...manifest,
+  const updatedManifest = await mergeAndSaveManifest(adapter, manifest, (latest) => ({
+    ...latest,
     narratives: {
-      ...(manifest.narratives ?? {}),
+      ...(latest.narratives ?? {}),
       [safeId]: meta,
     },
-  });
+  }));
 
   return { manifest: updatedManifest, meta };
 }
@@ -258,10 +306,10 @@ export async function saveRpgDatabase(
   };
   await adapter.ensureDir(PROJECT_DIRS.database);
   await adapter.writeText(dbPath, JSON.stringify(normalized, null, 2));
-  return saveProjectManifest(adapter, {
-    ...manifest,
+  return mergeAndSaveManifest(adapter, manifest, (latest) => ({
+    ...latest,
     databasePath: dbPath,
-  });
+  }));
 }
 
 export async function loadRpgDatabase(

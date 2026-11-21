@@ -14,6 +14,7 @@ interface DynamicCombatArenaProps {
   initialHeroHp?: number;
   initialHeroMp?: number;
   map?: TileMapData | null;
+  onActionTaken?: () => void;
   onFinish: (finalSnapshot: CombatSnapshot) => void;
 }
 
@@ -51,6 +52,7 @@ export function DynamicCombatArena({
   initialHeroHp,
   initialHeroMp,
   map,
+  onActionTaken,
   onFinish,
 }: DynamicCombatArenaProps) {
   const [engine] = useState(
@@ -60,11 +62,22 @@ export function DynamicCombatArena({
         initialHeroMp,
         arenaWidth: 560,
         arenaHeight: 280,
-        map: map ?? null,
+        // Bug #14: do not map unrelated top-left world tiles into arena coordinates
+        map: null,
       }),
   );
   const [snap, setSnap] = useState<DynamicCombatSnapshot>(() => engine.getSnapshot());
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const reportedActionRef = useRef(false);
+  const startingHeroHpRef = useRef(snap.hero.hp);
+  const startingEnemyHpRef = useRef(snap.enemy.hp);
+
+  function notifyAction() {
+    if (!reportedActionRef.current) {
+      reportedActionRef.current = true;
+      onActionTaken?.();
+    }
+  }
 
   // Keyboard controls: ZQSD / WASD / Arrows to move, Space to melee attack, 1-3 for skills
   useEffect(() => {
@@ -91,12 +104,12 @@ export function DynamicCombatArena({
         engine.setInput({ right: true });
       } else if (e.code === 'Space') {
         e.preventDefault();
-        engine.heroMeleeAttack();
+        if (engine.heroMeleeAttack()) notifyAction();
       } else if (k === '1' || k === '2' || k === '3') {
         const idx = Number(k) - 1;
         const skillId = database.hero.skillIds[idx];
-        if (skillId) {
-          engine.heroCastSkill(skillId);
+        if (skillId && engine.heroCastSkill(skillId)) {
+          notifyAction();
         }
       }
     }
@@ -150,22 +163,8 @@ export function DynamicCombatArena({
         ctx.stroke();
       }
 
-      // Draw optional map collision obstacles inside arena bounds
-      if (map) {
-        ctx.fillStyle = 'rgba(244, 63, 94, 0.22)';
-        ctx.strokeStyle = 'rgba(244, 63, 94, 0.55)';
-        const ts = map.tileSize;
-        for (let ty = 0; ty < map.height; ty += 1) {
-          if (ty * ts > h) break;
-          for (let tx = 0; tx < map.width; tx += 1) {
-            if (tx * ts > w) break;
-            if ((map.collisionLayer.cells[ty * map.width + tx] ?? 0) !== 0) {
-              ctx.fillRect(tx * ts, ty * ts, ts, ts);
-              ctx.strokeRect(tx * ts + 0.5, ty * ts + 0.5, ts - 1, ts - 1);
-            }
-          }
-        }
-      }
+      // Bug #14: Arena stays clean without projecting unrelated world-map top-left collisions
+      void map;
 
       // AI Preferred/Aggro range indicator (subtle ring around enemy)
       ctx.save();
@@ -269,6 +268,15 @@ export function DynamicCombatArena({
       const dt = Math.min(50, now - lastTime);
       lastTime = now;
       const next = engine.step(dt);
+      if (
+        !reportedActionRef.current &&
+        (next.hero.hp !== startingHeroHpRef.current ||
+          next.enemy.hp !== startingEnemyHpRef.current ||
+          next.projectiles.length > 0 ||
+          next.phase !== 'player_turn')
+      ) {
+        notifyAction();
+      }
       setSnap(next);
       drawArena(next);
       rafId = requestAnimationFrame(tick);
@@ -329,7 +337,9 @@ export function DynamicCombatArena({
           ref={canvasRef}
           width={snap.arenaWidth}
           height={snap.arenaHeight}
-          onClick={() => engine.heroMeleeAttack()}
+          onClick={() => {
+            if (engine.heroMeleeAttack()) notifyAction();
+          }}
           className="w-full max-w-[560px] cursor-crosshair rounded-lg border border-slate-700 bg-slate-950 shadow-inner"
         />
         <p className="mt-1 text-[11px] text-slate-400">
@@ -370,7 +380,9 @@ export function DynamicCombatArena({
           <div className="flex flex-wrap gap-1.5">
             <button
               type="button"
-              onClick={() => engine.heroMeleeAttack()}
+              onClick={() => {
+            if (engine.heroMeleeAttack()) notifyAction();
+          }}
               className="rounded bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-500"
             >
               ⚔ Frappe (Espace)
@@ -383,7 +395,9 @@ export function DynamicCombatArena({
                   key={sk.id}
                   type="button"
                   disabled={snap.hero.mp < sk.mpCost}
-                  onClick={() => engine.heroCastSkill(sk.id)}
+                  onClick={() => {
+                    if (engine.heroCastSkill(sk.id)) notifyAction();
+                  }}
                   className="rounded bg-indigo-600 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-indigo-500 disabled:opacity-40"
                 >
                   [{idx + 1}] {sk.name} ({sk.mpCost} PM)
@@ -397,7 +411,9 @@ export function DynamicCombatArena({
                 <button
                   key={it.id}
                   type="button"
-                  onClick={() => engine.heroUseItem(it.id)}
+                  onClick={() => {
+                    if (engine.heroUseItem(it.id)) notifyAction();
+                  }}
                   className="rounded bg-emerald-700 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-emerald-600"
                 >
                   🧪 {it.name} (×{entry.quantity})
@@ -408,7 +424,10 @@ export function DynamicCombatArena({
 
           <button
             type="button"
-            onClick={() => engine.flee()}
+            onClick={() => {
+              notifyAction();
+              engine.flee();
+            }}
             className="rounded border border-slate-700 bg-surface-800 px-3 py-1.5 text-xs text-slate-300 hover:bg-surface-700"
           >
             Fuir

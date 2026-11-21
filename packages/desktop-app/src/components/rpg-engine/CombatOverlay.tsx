@@ -94,9 +94,13 @@ export function CombatOverlay({
   );
   const [turnState, setTurnState] = useState<AnimatedTurnState>(() => strategy.getState());
   const [subMenu, setSubMenu] = useState<'main' | 'skills' | 'items'>('main');
+  const [hasActed, setHasActed] = useState(false);
 
-  // Re-initialize turn strategy when switching between Mode 1 and Mode 2
+  // Re-initialize turn strategy when switching between modes (only allowed before first action)
   function handleSwitchMode(nextMode: CombatMode) {
+    if (nextMode === activeMode || hasActed || turnState.displayedSnapshot.phase !== 'player_turn') {
+      return;
+    }
     setActiveMode(nextMode);
     setSubMenu('main');
     if (nextMode === 'simple' || nextMode === 'turn_based_animated') {
@@ -157,13 +161,21 @@ export function CombatOverlay({
           </span>
 
           {(database.combatConfig?.allowModeSwitchInPreview ?? true) && (
-            <div className="flex items-center gap-1 rounded border border-slate-700 bg-surface-950/80 p-0.5">
+            <div
+              className="flex items-center gap-1 rounded border border-slate-700 bg-surface-950/80 p-0.5"
+              title={
+                hasActed || isFinished
+                  ? 'Le mode de combat est verrouillé une fois l’action engagée.'
+                  : 'Choisir le mode de combat avant votre première action'
+              }
+            >
               {MODE_OPTIONS.map((opt) => (
                 <button
                   key={opt.id}
                   type="button"
+                  disabled={hasActed || isFinished}
                   onClick={() => handleSwitchMode(opt.id)}
-                  className={`rounded px-2 py-0.5 text-[10px] font-semibold transition ${
+                  className={`rounded px-2 py-0.5 text-[10px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-45 ${
                     activeMode === opt.id
                       ? 'bg-rose-600 text-white'
                       : 'text-slate-400 hover:text-white'
@@ -186,6 +198,7 @@ export function CombatOverlay({
               initialHeroHp={initialHeroHp}
               initialHeroMp={initialHeroMp}
               map={map}
+              onActionTaken={() => setHasActed(true)}
               onFinish={onFinish}
             />
           </div>
@@ -397,7 +410,10 @@ export function CombatOverlay({
                   <button
                     type="button"
                     disabled={turnState.busy}
-                    onClick={() => setTurnState(strategy.playerAttack())}
+                    onClick={() => {
+                      setHasActed(true);
+                      setTurnState(strategy.playerAttack());
+                    }}
                     className="pixel-btn pixel-btn-dragon flex items-center justify-center gap-1 px-2 py-2 text-[11px] font-bold disabled:opacity-40"
                   >
                     <PixelSwordIcon size={13} />
@@ -423,7 +439,10 @@ export function CombatOverlay({
                   <button
                     type="button"
                     disabled={turnState.busy}
-                    onClick={() => setTurnState(strategy.playerDefend())}
+                    onClick={() => {
+                      setHasActed(true);
+                      setTurnState(strategy.playerDefend());
+                    }}
                     className="pixel-btn pixel-btn-gold flex items-center justify-center gap-1 px-2 py-2 text-[11px] font-bold disabled:opacity-40"
                   >
                     <PixelShieldIcon size={13} />
@@ -432,7 +451,10 @@ export function CombatOverlay({
                   <button
                     type="button"
                     disabled={turnState.busy}
-                    onClick={() => setTurnState(strategy.playerFlee())}
+                    onClick={() => {
+                      setHasActed(true);
+                      setTurnState(strategy.playerFlee());
+                    }}
                     className="pixel-btn px-2 py-2 text-[11px] disabled:opacity-40"
                   >
                     Fuir
@@ -451,6 +473,7 @@ export function CombatOverlay({
                           type="button"
                           disabled={!canAfford}
                           onClick={() => {
+                            setHasActed(true);
                             setTurnState(strategy.playerUseSkill(skill.id));
                             setSubMenu('main');
                           }}
@@ -492,6 +515,7 @@ export function CombatOverlay({
                             type="button"
                             disabled={turnState.busy}
                             onClick={() => {
+                              setHasActed(true);
                               setTurnState(strategy.playerUseItem(item.id));
                               setSubMenu('main');
                             }}

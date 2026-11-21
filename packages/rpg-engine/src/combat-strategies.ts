@@ -163,12 +163,13 @@ export class TurnBasedCombatStrategy {
     }
 
     const before = this.displayedSnapshot;
-    // Pre-compute authoritative outcome, but withhold visual HP update until exact `hit_frame`!
+    // Pre-compute authoritative outcome AND capture exact post-hero snapshot (Bug #13)
     const afterFullRound = executeCore();
-    const enemyDmg = before.enemy.hp - afterFullRound.enemy.hp;
-    const heroDelta = afterFullRound.hero.hp - before.hero.hp;
+    const afterHero = this.core.getLastAfterHeroSnapshot();
+    const enemyDmg = Math.max(0, before.enemy.hp - afterHero.enemy.hp);
+    const heroHeal = Math.max(0, afterHero.hero.hp - before.hero.hp);
 
-    // Step 1: Hero animation -> at `hit_frame`, enemy HP drops (or hero heals)
+    // Step 1: Hero animation -> at `hit_frame`, apply exact post-hero snapshot (no enemy log leak!)
     const clipToPlay = this.heroAttackClip;
     this.pendingQueue.push({
       actor: 'hero',
@@ -177,28 +178,21 @@ export class TurnBasedCombatStrategy {
       hitApplied: false,
       vfxPayload,
       onHit: () => {
-        // Apply hero's impact to displayed snapshot while holding enemy retaliation for Step 2
-        const intermediateHeroHp =
-          heroDelta > 0 ? Math.min(afterFullRound.hero.stats.maxHp, before.hero.hp + heroDelta) : before.hero.hp;
-        this.displayedSnapshot = {
-          ...afterFullRound,
-          hero: { ...afterFullRound.hero, hp: intermediateHeroHp },
-          phase: afterFullRound.enemy.hp <= 0 ? 'victory' : 'player_turn',
-        };
+        this.displayedSnapshot = afterHero;
         if (enemyDmg > 0) {
           this.hurtEnemyMs = 280;
           this.cameraShakeMs = 180;
           return { damageText: `-${enemyDmg}`, target: 'enemy' };
         }
-        if (heroDelta > 0) {
-          return { healText: `+${heroDelta} PV`, target: 'hero' };
+        if (heroHeal > 0) {
+          return { healText: `+${heroHeal} PV`, target: 'hero' };
         }
         return { target: 'enemy' };
       },
     });
 
-    // Step 2: Enemy retaliation animation (only if enemy survived & battle didn't end)
-    if (afterFullRound.enemy.hp > 0 && afterFullRound.phase !== 'fled') {
+    // Step 2: Enemy retaliation animation (only if battle continued after hero's action)
+    if (afterHero.phase === 'player_turn' && afterFullRound.phase !== 'fled') {
       this.pendingQueue.push({
         actor: 'enemy',
         visual: 'attack_melee',
@@ -207,11 +201,15 @@ export class TurnBasedCombatStrategy {
         vfxPayload: 'enemy_strike',
         onHit: () => {
           this.displayedSnapshot = afterFullRound;
-          const dmgToHero = Math.max(0, before.hero.hp - afterFullRound.hero.hp);
+          const dmgToHero = Math.max(0, afterHero.hero.hp - afterFullRound.hero.hp);
+          const enemyHealed = Math.max(0, afterFullRound.enemy.hp - afterHero.enemy.hp);
           if (dmgToHero > 0) {
             this.hurtHeroMs = 280;
             this.cameraShakeMs = 180;
             return { damageText: `-${dmgToHero}`, target: 'hero' };
+          }
+          if (enemyHealed > 0) {
+            return { healText: `+${enemyHealed} PV`, target: 'enemy' };
           }
           return { target: 'hero' };
         },

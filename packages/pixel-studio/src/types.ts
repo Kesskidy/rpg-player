@@ -9,8 +9,9 @@ import type {
   Hitbox,
 } from '@rpg-player/core-types';
 
-/** Phase 1 MVP drawing tools. */
-export type PixelToolId = 'pencil' | 'eraser';
+/** Pixel Studio drawing tools (freehand + Paint-style draggable shapes). */
+export type PixelShapeToolId = 'rect' | 'ellipse' | 'line';
+export type PixelToolId = 'pencil' | 'eraser' | PixelShapeToolId;
 
 export interface PixelPoint {
   x: number;
@@ -67,6 +68,8 @@ export interface PixelStudioState {
   activeTool: PixelToolId;
   activeColor: ColorRGBA;
   brushSize: number;
+  shapeFilled: boolean;
+  shapeLockAspect: boolean;
   activeFrameIndex: number;
   activeLayerId: string;
   showGrid: boolean;

@@ -5,6 +5,7 @@ node_modules/
 dist/
 dist-electron/
 scripts/demo-pack/dist/
+scripts/scenarios/*/dist/
 release/
 *.tsbuildinfo
 

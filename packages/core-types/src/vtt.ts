@@ -125,6 +125,8 @@ export type VttClientMessage =
       roomCode: string;
       password?: string;
       playerName: string;
+      /** Optional session token received in a previous `room_joined` to reclaim the same seat on reconnect. */
+      sessionToken?: string;
     }
   | {
       type: 'move_token';
@@ -184,6 +186,7 @@ export type VttServerMessage =
       roomCode: string;
       participantId: string;
       role: VttRole;
+      sessionToken?: string;
       state: VttRoomState;
     }
   | {

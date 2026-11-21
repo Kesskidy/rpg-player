@@ -5,7 +5,11 @@ import {
 } from '@rpg-player/core-types';
 import { MemoryStorageAdapter } from './adapter.js';
 
-async function fetchText(url: string): Promise<string> {
+async function readDemoText(baseUrl: string, relPath: string): Promise<string> {
+  if (typeof window !== 'undefined' && window.rpgPlayerFs?.readDemoText) {
+    return window.rpgPlayerFs.readDemoText(relPath);
+  }
+  const url = `${baseUrl}/${relPath}`;
   const res = await fetch(url);
   if (!res.ok) {
     throw new Error(`Impossible de charger ${url} (HTTP ${res.status})`);
@@ -13,7 +17,11 @@ async function fetchText(url: string): Promise<string> {
   return res.text();
 }
 
-async function fetchBinary(url: string): Promise<Uint8Array> {
+async function readDemoBinary(baseUrl: string, relPath: string): Promise<Uint8Array> {
+  if (typeof window !== 'undefined' && window.rpgPlayerFs?.readDemoBinary) {
+    return window.rpgPlayerFs.readDemoBinary(relPath);
+  }
+  const url = `${baseUrl}/${relPath}`;
   const res = await fetch(url);
   if (!res.ok) {
     throw new Error(`Impossible de charger ${url} (HTTP ${res.status})`);
@@ -24,7 +32,8 @@ async function fetchBinary(url: string): Promise<Uint8Array> {
 
 /**
  * Loads the bundled `demo-pack/` project into an in-memory ProjectStorageAdapter
- * so the user can test Pixel Studio, RPG Engine, and VTT immediately with 1 click.
+ * so the user can test Pixel Studio, Animation Studio, RPG Engine, and VTT in 1 click
+ * both in web browsers and inside packaged Windows `.exe` builds.
  */
 export async function loadDemoPackProject(
   baseUrl = './demo-pack',
@@ -32,7 +41,7 @@ export async function loadDemoPackProject(
   const adapter = new MemoryStorageAdapter();
   await adapter.pickProjectDirectory();
 
-  const manifestText = await fetchText(`${baseUrl}/${PROJECT_MANIFEST_FILENAME}`);
+  const manifestText = await readDemoText(baseUrl, PROJECT_MANIFEST_FILENAME);
   const manifest = JSON.parse(manifestText) as ProjectManifest;
   await adapter.writeText(PROJECT_MANIFEST_FILENAME, manifestText);
   await adapter.ensureDir(PROJECT_DIRS.assets);
@@ -45,18 +54,18 @@ export async function loadDemoPackProject(
   // Hydrate all assets (.png, .pxs.json, .meta.json)
   for (const meta of Object.values(manifest.assets)) {
     tasks.push(
-      fetchBinary(`${baseUrl}/${meta.filePath}`).then((bytes) =>
+      readDemoBinary(baseUrl, meta.filePath).then((bytes) =>
         adapter.writeBinary(meta.filePath, bytes),
       ),
     );
     tasks.push(
-      fetchText(`${baseUrl}/${meta.sourcePath}`).then((txt) =>
+      readDemoText(baseUrl, meta.sourcePath).then((txt) =>
         adapter.writeText(meta.sourcePath, txt),
       ),
     );
     const metaPath = `${PROJECT_DIRS.assets}/${meta.id}.meta.json`;
     tasks.push(
-      fetchText(`${baseUrl}/${metaPath}`)
+      readDemoText(baseUrl, metaPath)
         .then((txt) => adapter.writeText(metaPath, txt))
         .catch(() => undefined),
     );
@@ -65,7 +74,7 @@ export async function loadDemoPackProject(
   // Hydrate maps
   for (const mapMeta of Object.values(manifest.maps ?? {})) {
     tasks.push(
-      fetchText(`${baseUrl}/${mapMeta.filePath}`).then((txt) =>
+      readDemoText(baseUrl, mapMeta.filePath).then((txt) =>
         adapter.writeText(mapMeta.filePath, txt),
       ),
     );
@@ -74,7 +83,7 @@ export async function loadDemoPackProject(
   // Hydrate narrative graphs
   for (const narMeta of Object.values(manifest.narratives ?? {})) {
     tasks.push(
-      fetchText(`${baseUrl}/${narMeta.filePath}`).then((txt) =>
+      readDemoText(baseUrl, narMeta.filePath).then((txt) =>
         adapter.writeText(narMeta.filePath, txt),
       ),
     );
@@ -84,7 +93,7 @@ export async function loadDemoPackProject(
   if (manifest.databasePath) {
     const dbPath = manifest.databasePath;
     tasks.push(
-      fetchText(`${baseUrl}/${dbPath}`).then((txt) => adapter.writeText(dbPath, txt)),
+      readDemoText(baseUrl, dbPath).then((txt) => adapter.writeText(dbPath, txt)),
     );
   }
 

@@ -6,7 +6,11 @@ import type {
   ProjectStorageAdapter,
 } from '@rpg-player/core-types';
 import { PixelStudioEngine, type ImageToPixelArtResult } from '@rpg-player/pixel-studio';
-import { loadPixelAssetSource, savePixelAsset } from '../../storage/project-service';
+import {
+  formatSaveFeedback,
+  loadPixelAssetSource,
+  savePixelAsset,
+} from '../../storage/project-service';
 import { AssetSidebar, type NewAssetRequest } from './AssetSidebar';
 import { ImageToPixelArtModal } from './ImageToPixelArtModal';
 import { LayersPanel } from './LayersPanel';
@@ -131,6 +135,12 @@ export function PixelStudioWorkspace({
         engine.setTool('pencil');
       } else if (key === 'e') {
         engine.setTool('eraser');
+      } else if (key === 'r') {
+        engine.setTool('rect');
+      } else if (key === 'o') {
+        engine.setTool('ellipse');
+      } else if (key === 'l') {
+        engine.setTool('line');
       } else if (key === 'g') {
         engine.setShowGrid(!engine.getState().showGrid);
       }
@@ -212,7 +222,10 @@ export function PixelStudioWorkspace({
       onProjectUpdated(result.manifest);
       setFeedback({
         kind: 'ok',
-        text: `Exporté : ${result.meta.filePath} + ${result.meta.sourcePath} + AssetMeta.`,
+        text: formatSaveFeedback(
+          storage,
+          `Exporté : ${result.meta.filePath} + ${result.meta.sourcePath} + AssetMeta.`,
+        ),
       });
     } catch (error) {
       setFeedback({

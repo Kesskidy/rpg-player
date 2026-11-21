@@ -1,5 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import type { OnionSkinOptions, PixelPoint, PixelStudioEngine } from '@rpg-player/pixel-studio';
+import {
+  computeShapePixels,
+  constrainShapeEndPoint,
+  type OnionSkinOptions,
+  type PixelPoint,
+  type PixelShapeToolId,
+  type PixelStudioEngine,
+  type PixelToolId,
+} from '@rpg-player/pixel-studio';
 
 interface PixelCanvasProps {
   engine: PixelStudioEngine;
@@ -7,6 +15,17 @@ interface PixelCanvasProps {
   zoom: number;
   onZoomChange: (nextZoom: number) => void;
   onionSkin?: OnionSkinOptions;
+}
+
+function isShapeTool(tool: PixelToolId): tool is PixelShapeToolId {
+  return tool === 'rect' || tool === 'ellipse' || tool === 'line';
+}
+
+interface ShapeDraft {
+  tool: PixelShapeToolId;
+  start: PixelPoint;
+  end: PixelPoint;
+  shiftHeld: boolean;
 }
 
 export function PixelCanvas({
@@ -23,8 +42,10 @@ export function PixelCanvas({
   const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [hoverPoint, setHoverPoint] = useState<PixelPoint | null>(null);
   const [isSpaceHeld, setIsSpaceHeld] = useState(false);
+  const [shapeDraft, setShapeDraft] = useState<ShapeDraft | null>(null);
 
   const isDrawingRef = useRef(false);
+  const shapeDraftRef = useRef<ShapeDraft | null>(null);
   const isPanningRef = useRef(false);
   const panStartRef = useRef<{ clientX: number; clientY: number; originX: number; originY: number }>({
     clientX: 0,
@@ -43,7 +64,7 @@ export function PixelCanvas({
     setPan({ x: 0, y: 0 });
   }, [doc.assetId, doc.width, doc.height]);
 
-  // Spacebar pan toggle
+  // Spacebar pan toggle + live Shift key constraint updates while dragging a shape
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (
@@ -54,10 +75,20 @@ export function PixelCanvas({
         event.preventDefault();
         setIsSpaceHeld(true);
       }
+      if (event.key === 'Shift' && shapeDraftRef.current) {
+        const next = { ...shapeDraftRef.current, shiftHeld: true };
+        shapeDraftRef.current = next;
+        setShapeDraft(next);
+      }
     }
     function handleKeyUp(event: KeyboardEvent) {
       if (event.code === 'Space') {
         setIsSpaceHeld(false);
+      }
+      if (event.key === 'Shift' && shapeDraftRef.current) {
+        const next = { ...shapeDraftRef.current, shiftHeld: false };
+        shapeDraftRef.current = next;
+        setShapeDraft(next);
       }
     }
     window.addEventListener('keydown', handleKeyDown);
@@ -92,7 +123,7 @@ export function PixelCanvas({
     onionSkin?.opacity,
   ]);
 
-  // Paint crisp 1px screen-space grid and brush preview overlay
+  // Paint crisp 1px screen-space grid, live draggable shape preview, and brush cursor overlay
   useEffect(() => {
     const overlay = overlayCanvasRef.current;
     if (!overlay) return;
@@ -102,7 +133,7 @@ export function PixelCanvas({
     ctx.clearRect(0, 0, displayWidth, displayHeight);
 
     if (state.showGrid && zoom >= 4) {
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+      ctx.strokeStyle = 'rgba(239, 230, 213, 0.11)';
       ctx.lineWidth = 1;
       ctx.beginPath();
       for (let x = 1; x < doc.width; x += 1) {
@@ -118,8 +149,54 @@ export function PixelCanvas({
       ctx.stroke();
     }
 
-    if (hoverPoint && !isSpaceHeld) {
-      const size = Math.max(1, state.brushSize);
+    // Live Paint-style pixel-perfect shape preview while dragging
+    if (shapeDraft) {
+      const lockAspect = state.shapeLockAspect || shapeDraft.shiftHeld;
+      const points = computeShapePixels(shapeDraft.tool, shapeDraft.start, shapeDraft.end, {
+        filled: state.shapeFilled,
+        lockAspect,
+      });
+      const stampSize = state.shapeFilled && shapeDraft.tool !== 'line' ? 1 : state.brushSize;
+      const startOffset = Math.floor((stampSize - 1) / 2);
+
+      const c = state.activeColor;
+      ctx.fillStyle = `rgba(${c.r}, ${c.g}, ${c.b}, ${Math.max(0.35, (c.a / 255) * 0.85)})`;
+      for (const pt of points) {
+        for (let dy = 0; dy < stampSize; dy += 1) {
+          const py = pt.y - startOffset + dy;
+          if (py < 0 || py >= doc.height) continue;
+          for (let dx = 0; dx < stampSize; dx += 1) {
+            const px = pt.x - startOffset + dx;
+            if (px < 0 || px >= doc.width) continue;
+            ctx.fillRect(px * zoom, py * zoom, zoom, zoom);
+          }
+        }
+      }
+
+      // Antique gold bounding box guide
+      const resolvedEnd = constrainShapeEndPoint(
+        shapeDraft.tool,
+        shapeDraft.start,
+        shapeDraft.end,
+        lockAspect,
+      );
+      const minX = Math.min(shapeDraft.start.x, resolvedEnd.x);
+      const maxX = Math.max(shapeDraft.start.x, resolvedEnd.x);
+      const minY = Math.min(shapeDraft.start.y, resolvedEnd.y);
+      const maxY = Math.max(shapeDraft.start.y, resolvedEnd.y);
+      ctx.save();
+      ctx.strokeStyle = '#DFA842';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 3]);
+      ctx.strokeRect(
+        minX * zoom + 0.75,
+        minY * zoom + 0.75,
+        (maxX - minX + 1) * zoom - 1.5,
+        (maxY - minY + 1) * zoom - 1.5,
+      );
+      ctx.restore();
+    } else if (hoverPoint && !isSpaceHeld) {
+      const size = isShapeTool(state.activeTool) ? 1 : Math.max(1, state.brushSize);
       const startOffset = Math.floor((size - 1) / 2);
       const rx = (hoverPoint.x - startOffset) * zoom;
       const ry = (hoverPoint.y - startOffset) * zoom;
@@ -127,7 +204,11 @@ export function PixelCanvas({
       const rh = size * zoom;
 
       ctx.strokeStyle =
-        state.activeTool === 'eraser' ? 'rgba(248, 113, 113, 0.95)' : 'rgba(255, 255, 255, 0.95)';
+        state.activeTool === 'eraser'
+          ? 'rgba(224, 67, 67, 0.95)'
+          : isShapeTool(state.activeTool)
+            ? '#DFA842'
+            : 'rgba(239, 230, 213, 0.95)';
       ctx.lineWidth = 1.5;
       ctx.strokeRect(rx + 0.75, ry + 0.75, Math.max(1, rw - 1.5), Math.max(1, rh - 1.5));
     }
@@ -140,16 +221,25 @@ export function PixelCanvas({
     state.showGrid,
     state.brushSize,
     state.activeTool,
+    state.activeColor,
+    state.shapeFilled,
+    state.shapeLockAspect,
     hoverPoint,
     isSpaceHeld,
+    shapeDraft,
   ]);
 
-  function clientToPixel(clientX: number, clientY: number): PixelPoint | null {
+  function clientToPixel(clientX: number, clientY: number, clampToBounds = false): PixelPoint | null {
     const canvas = artCanvasRef.current;
     if (!canvas) return null;
     const rect = canvas.getBoundingClientRect();
-    const x = Math.floor(((clientX - rect.left) / rect.width) * doc.width);
-    const y = Math.floor(((clientY - rect.top) / rect.height) * doc.height);
+    let x = Math.floor(((clientX - rect.left) / rect.width) * doc.width);
+    let y = Math.floor(((clientY - rect.top) / rect.height) * doc.height);
+    if (clampToBounds) {
+      x = Math.max(0, Math.min(doc.width - 1, x));
+      y = Math.max(0, Math.min(doc.height - 1, y));
+      return { x, y };
+    }
     if (x < 0 || y < 0 || x >= doc.width || y >= doc.height) {
       return null;
     }
@@ -179,8 +269,22 @@ export function PixelCanvas({
     if (!pt) return;
 
     event.currentTarget.setPointerCapture(event.pointerId);
-    isDrawingRef.current = true;
     setHoverPoint(pt);
+
+    const activeTool = engine.getState().activeTool;
+    if (isShapeTool(activeTool)) {
+      const draft: ShapeDraft = {
+        tool: activeTool,
+        start: pt,
+        end: pt,
+        shiftHeld: event.shiftKey,
+      };
+      shapeDraftRef.current = draft;
+      setShapeDraft(draft);
+      return;
+    }
+
+    isDrawingRef.current = true;
     engine.beginStroke(pt);
   }
 
@@ -195,6 +299,21 @@ export function PixelCanvas({
       return;
     }
 
+    if (shapeDraftRef.current) {
+      const clampedPt = clientToPixel(event.clientX, event.clientY, true);
+      if (clampedPt) {
+        setHoverPoint(clampedPt);
+        const next: ShapeDraft = {
+          ...shapeDraftRef.current,
+          end: clampedPt,
+          shiftHeld: event.shiftKey,
+        };
+        shapeDraftRef.current = next;
+        setShapeDraft(next);
+      }
+      return;
+    }
+
     const pt = clientToPixel(event.clientX, event.clientY);
     setHoverPoint(pt);
 
@@ -206,6 +325,18 @@ export function PixelCanvas({
   function handlePointerUp(event: React.PointerEvent<HTMLDivElement>) {
     if (isPanningRef.current) {
       isPanningRef.current = false;
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+      return;
+    }
+
+    if (shapeDraftRef.current) {
+      const draft = shapeDraftRef.current;
+      shapeDraftRef.current = null;
+      setShapeDraft(null);
+      const lockAspect = engine.getState().shapeLockAspect || event.shiftKey || draft.shiftHeld;
+      engine.commitShape(draft.tool, draft.start, draft.end, { lockAspect });
       if (event.currentTarget.hasPointerCapture(event.pointerId)) {
         event.currentTarget.releasePointerCapture(event.pointerId);
       }
@@ -231,6 +362,19 @@ export function PixelCanvas({
     }
   }
 
+  let shapeDimsLabel: string | null = null;
+  if (shapeDraft) {
+    const resolvedEnd = constrainShapeEndPoint(
+      shapeDraft.tool,
+      shapeDraft.start,
+      shapeDraft.end,
+      state.shapeLockAspect || shapeDraft.shiftHeld,
+    );
+    const w = Math.abs(resolvedEnd.x - shapeDraft.start.x) + 1;
+    const h = Math.abs(resolvedEnd.y - shapeDraft.start.y) + 1;
+    shapeDimsLabel = `Forme ${w}×${h}px`;
+  }
+
   return (
     <div
       ref={viewportRef}
@@ -238,7 +382,7 @@ export function PixelCanvas({
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerLeave={() => {
-        if (!isDrawingRef.current) setHoverPoint(null);
+        if (!isDrawingRef.current && !shapeDraftRef.current) setHoverPoint(null);
       }}
       onWheel={handleWheel}
       onContextMenu={(event) => event.preventDefault()}
@@ -252,7 +396,7 @@ export function PixelCanvas({
           width: displayWidth,
           height: displayHeight,
         }}
-        className="pixel-checkerboard relative shadow-2xl ring-1 ring-slate-600/80"
+        className="pixel-checkerboard relative border-2 border-dnd-border shadow-pixel-lg"
       >
         <canvas
           ref={artCanvasRef}
@@ -269,7 +413,7 @@ export function PixelCanvas({
         />
       </div>
 
-      <div className="pointer-events-none absolute bottom-3 left-3 flex items-center gap-3 rounded-md border border-slate-800 bg-surface-900/90 px-3 py-1.5 text-[11px] text-slate-300 backdrop-blur">
+      <div className="pointer-events-none absolute bottom-3 left-3 flex items-center gap-3 border-2 border-dnd-border bg-dnd-stone/95 px-3 py-1.5 text-[11px] text-dnd-parchment shadow-pixel-sm">
         <span className="font-mono">
           {doc.width}×{doc.height}px
         </span>
@@ -277,10 +421,14 @@ export function PixelCanvas({
         <span className="font-mono">Zoom {zoom}×</span>
         <span className="text-slate-600">|</span>
         <span className="font-mono">
-          {hoverPoint ? `X:${hoverPoint.x} Y:${hoverPoint.y}` : 'Hors canvas'}
+          {shapeDimsLabel ?? (hoverPoint ? `X:${hoverPoint.x} Y:${hoverPoint.y}` : 'Hors canvas')}
         </span>
         <span className="text-slate-600">|</span>
-        <span className="text-slate-400">Espace + Glisser : déplacer</span>
+        <span className="text-dnd-muted">
+          {isShapeTool(state.activeTool)
+            ? 'Glisser pour étendre · Shift : 1:1'
+            : 'Espace + Glisser : déplacer'}
+        </span>
       </div>
     </div>
   );

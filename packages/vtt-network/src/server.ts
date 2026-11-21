@@ -1,4 +1,4 @@
-import type { VttClientMessage, VttServerMessage } from '@rpg-player/core-types';
+import type { VttServerMessage } from '@rpg-player/core-types';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { VttRoomManager } from './room-manager.js';
 
@@ -67,56 +67,88 @@ export function createVttProtocolRouter(roomManager: VttRoomManager): VttProtoco
       const session = sessions.get(socket);
       if (!session) return;
 
-      let parsed: VttClientMessage;
       try {
-        parsed = JSON.parse(rawJson) as VttClientMessage;
-      } catch {
-        sendJson(socket, {
-          type: 'error',
-          code: 'BAD_JSON',
-          message: 'Requête JSON invalide.',
-        });
-        return;
-      }
-
-      const outcome = roomManager.handleMessage(session.roomCode, session.participantId, parsed);
-      if (!outcome.ok) {
-        sendJson(socket, {
-          type: 'error',
-          code: outcome.errorCode ?? 'ERROR',
-          message: outcome.errorMessage ?? 'Action refusée.',
-        });
-        return;
-      }
-
-      if (
-        (parsed.type === 'create_room' || parsed.type === 'join_room') &&
-        outcome.roomCode &&
-        outcome.participantId &&
-        outcome.role
-      ) {
-        session.roomCode = outcome.roomCode;
-        session.participantId = outcome.participantId;
-        const projected = roomManager.projectStateFor(outcome.roomCode, outcome.participantId);
-        if (projected) {
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(rawJson);
+        } catch {
           sendJson(socket, {
-            type: 'room_joined',
-            roomCode: outcome.roomCode,
-            participantId: outcome.participantId,
-            role: outcome.role,
-            state: projected,
+            type: 'error',
+            code: 'BAD_JSON',
+            message: 'Requête JSON invalide.',
           });
+          return;
         }
-        broadcastRoomState(outcome.roomCode);
-        return;
-      }
 
-      if (outcome.chatMessage && session.roomCode) {
-        broadcastChat(session.roomCode, outcome.chatMessage);
-      }
+        const msgType =
+          typeof parsed === 'object' && parsed !== null
+            ? (parsed as { type?: unknown }).type
+            : undefined;
 
-      if (outcome.broadcastState && session.roomCode) {
-        broadcastRoomState(session.roomCode);
+        // Refuse duplicate create_room / join_room on an already-joined socket (Bug #10)
+        if (
+          (msgType === 'create_room' || msgType === 'join_room') &&
+          session.roomCode !== null &&
+          session.participantId !== null
+        ) {
+          sendJson(socket, {
+            type: 'error',
+            code: 'ALREADY_IN_ROOM',
+            message: 'Cette connexion appartient déjà à un salon actif.',
+          });
+          return;
+        }
+
+        const outcome = roomManager.handleMessage(
+          session.roomCode,
+          session.participantId,
+          parsed,
+        );
+        if (!outcome.ok) {
+          sendJson(socket, {
+            type: 'error',
+            code: outcome.errorCode ?? 'ERROR',
+            message: outcome.errorMessage ?? 'Action refusée.',
+          });
+          return;
+        }
+
+        if (
+          (msgType === 'create_room' || msgType === 'join_room') &&
+          outcome.roomCode &&
+          outcome.participantId &&
+          outcome.role
+        ) {
+          session.roomCode = outcome.roomCode;
+          session.participantId = outcome.participantId;
+          const projected = roomManager.projectStateFor(outcome.roomCode, outcome.participantId);
+          if (projected) {
+            sendJson(socket, {
+              type: 'room_joined',
+              roomCode: outcome.roomCode,
+              participantId: outcome.participantId,
+              role: outcome.role,
+              sessionToken: outcome.sessionToken,
+              state: projected,
+            });
+          }
+          broadcastRoomState(outcome.roomCode);
+          return;
+        }
+
+        if (outcome.chatMessage && session.roomCode) {
+          broadcastChat(session.roomCode, outcome.chatMessage);
+        }
+
+        if (outcome.broadcastState && session.roomCode) {
+          broadcastRoomState(session.roomCode);
+        }
+      } catch (err) {
+        sendJson(socket, {
+          type: 'error',
+          code: 'INTERNAL_ERROR',
+          message: err instanceof Error ? err.message : 'Erreur interne du serveur VTT.',
+        });
       }
     },
 
@@ -142,10 +174,18 @@ export interface RunningVttServer {
  * Authoritative Node.js WebSocket server hosting VTT Rooms.
  * Can run standalone (`npm.cmd run vtt:server`) or embedded inside Electron's main process.
  */
+const MAX_WS_PAYLOAD_BYTES = 2 * 1024 * 1024; // 2 MiB max payload to prevent DoS
+
 export function startVttServer(port = 8765, host = '0.0.0.0'): Promise<RunningVttServer> {
   const roomManager = new VttRoomManager();
   const router = createVttProtocolRouter(roomManager);
-  const wss = new WebSocketServer({ port, host });
+  const wss = new WebSocketServer({ port, host, maxPayload: MAX_WS_PAYLOAD_BYTES });
+
+  // Periodically prune abandoned rooms where everyone disconnected (Bug #10)
+  const pruneTimer = setInterval(() => {
+    roomManager.pruneIdleRooms();
+  }, 5 * 60 * 1000);
+  pruneTimer.unref?.();
 
   wss.on('connection', (socket: WebSocket) => {
     router.register(socket);
@@ -166,6 +206,7 @@ export function startVttServer(port = 8765, host = '0.0.0.0'): Promise<RunningVt
         roomManager,
         close: () =>
           new Promise<void>((res, rej) => {
+            clearInterval(pruneTimer);
             for (const client of wss.clients) {
               client.close();
             }

@@ -13,6 +13,7 @@ import type {
   ProjectManifest,
   ProjectStorageAdapter,
   RpgDatabase,
+  TileMapData,
 } from '@rpg-player/core-types';
 import {
   AssetTextureRegistry,
@@ -28,7 +29,7 @@ import {
   type TileCoord,
   type ViewportMode,
 } from '@rpg-player/rpg-engine';
-import { loadMap, saveMap } from '../../storage/project-service';
+import { formatSaveFeedback, loadMap, saveMap } from '../../storage/project-service';
 import { CombatOverlay } from './CombatOverlay';
 import { DialogueOverlay } from './DialogueOverlay';
 import { InventoryModal } from './InventoryModal';
@@ -120,6 +121,7 @@ export function MapEditorWorkspace({
     step: NarrativeStepState;
   } | null>(null);
   const [activeCombatEnemyId, setActiveCombatEnemyId] = useState<string | null>(null);
+  const [previewMap, setPreviewMap] = useState<TileMapData | null>(null);
   const [previewToast, setPreviewToast] = useState<string | null>(null);
 
   const [newMapName, setNewMapName] = useState('Donjon');
@@ -129,6 +131,7 @@ export function MapEditorWorkspace({
 
   const [feedback, setFeedback] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [viewportReady, setViewportReady] = useState(false);
 
   const viewportHostRef = useRef<HTMLDivElement | null>(null);
   const registryRef = useRef<AssetTextureRegistry | null>(null);
@@ -157,7 +160,7 @@ export function MapEditorWorkspace({
     });
   }, [editor]);
 
-  // Mount PixiJS v8 WebGL viewport
+  // Mount PixiJS v8 WebGL/Canvas viewport
   useEffect(() => {
     const host = viewportHostRef.current;
     if (!host) return;
@@ -166,21 +169,27 @@ export function MapEditorWorkspace({
     const viewport = new PixiMapViewport(editor.getMap(), registry);
     registryRef.current = registry;
     viewportRef.current = viewport;
+    setViewportReady(false);
 
     let cancelled = false;
-    void viewport.init(host).then(async () => {
-      if (cancelled) return;
-      if (project) {
-        await registry.loadFromStorage(storage, project.assets);
-        if (!cancelled) {
-          viewport.rebuildScene();
-        }
-      }
-      setZoomDisplay(viewport.getCamera().zoom);
-    });
+    void viewport
+      .init(host)
+      .then(() => {
+        if (cancelled) return;
+        setViewportReady(true);
+        setZoomDisplay(viewport.getCamera().zoom);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setFeedback({
+          kind: 'error',
+          text: `Erreur d’initialisation du rendu 2D : ${err instanceof Error ? err.message : String(err)}`,
+        });
+      });
 
     return () => {
       cancelled = true;
+      setViewportReady(false);
       viewport.destroy();
       registry.destroy();
       viewportRef.current = null;
@@ -203,29 +212,34 @@ export function MapEditorWorkspace({
         setSelectedEventId(loaded.events[0]?.id ?? null);
         viewportRef.current?.syncMap(loaded);
         viewportRef.current?.centerCameraOnMap();
+        setZoomDisplay(viewportRef.current?.getCamera().zoom ?? 2);
       })
       .catch(() => undefined);
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storage, project?.id]);
+  }, [storage, project?.id, viewportReady]);
 
-  // Auto-import all Phase 1 assets whenever project manifest changes
+  // Single authoritative asset sync once viewport is ready (prevents texture destroy race!)
   useEffect(() => {
+    if (!viewportReady) return;
     const registry = registryRef.current;
     const viewport = viewportRef.current;
     if (!registry || !viewport) return;
 
     let cancelled = false;
     async function syncAssets() {
+      viewport!.clearScene();
       if (!project) {
         registry!.clear();
       } else {
         await registry!.loadFromStorage(storage, project.assets);
       }
       if (!cancelled) {
-        viewport!.rebuildScene();
+        viewport!.syncMap(editor.getMap());
+        viewport!.centerCameraOnMap();
+        setZoomDisplay(viewport!.getCamera().zoom);
       }
     }
     void syncAssets();
@@ -233,7 +247,7 @@ export function MapEditorWorkspace({
     return () => {
       cancelled = true;
     };
-  }, [storage, project]);
+  }, [storage, project, viewportReady, editor]);
 
   function launchBattle(enemyId: string) {
     if (!database.enemies[enemyId]) {
@@ -249,7 +263,7 @@ export function MapEditorWorkspace({
       const dest = event.teleport;
       void loadMap(storage, targetMeta)
         .then((loaded) => {
-          const teleportedMap = {
+          const teleportedMap: TileMapData = {
             ...loaded,
             playerSpawn: {
               x: dest.targetX,
@@ -257,7 +271,8 @@ export function MapEditorWorkspace({
               direction: dest.direction ?? loaded.playerSpawn.direction,
             },
           };
-          editor.loadMap(teleportedMap);
+          // Keep MapEditorEngine untouched so unsaved edits & Undo history are preserved!
+          setPreviewMap(teleportedMap);
           viewportRef.current?.syncMap(teleportedMap);
           setPreviewToast(`Téléportation → ${loaded.name}`);
         })
@@ -435,6 +450,7 @@ export function MapEditorWorkspace({
     setActiveCombatEnemyId(null);
     setInventoryOpen(false);
     setPreviewToast(null);
+    setPreviewMap(null);
 
     if (nextMode === 'preview') {
       const freshInv = new InventorySystem(database);
@@ -444,6 +460,10 @@ export function MapEditorWorkspace({
       setHeroHp(eff.maxHp);
       setHeroMp(eff.maxMp);
       setInventoryTick((t) => t + 1);
+    } else {
+      // Restore the editor's untouched map & camera when returning from Preview
+      viewportRef.current?.syncMap(editor.getMap());
+      viewportRef.current?.centerCameraOnMap();
     }
     viewportRef.current?.setMode(nextMode);
   }
@@ -596,7 +616,10 @@ export function MapEditorWorkspace({
     try {
       const saved = await saveMap(storage, project, editor.serialize());
       onProjectUpdated(saved.manifest);
-      setFeedback({ kind: 'ok', text: `Map sauvegardée dans ${saved.meta.filePath}.` });
+      setFeedback({
+        kind: 'ok',
+        text: formatSaveFeedback(storage, `Map sauvegardée dans ${saved.meta.filePath}.`),
+      });
     } catch (error) {
       setFeedback({
         kind: 'error',
@@ -646,6 +669,7 @@ export function MapEditorWorkspace({
 
   void renderVersion;
   const map = editor.getMap();
+  const displayedMap = mode === 'preview' && previewMap ? previewMap : map;
   const state = editor.getState();
   const projectMaps = project?.maps ? Object.values(project.maps) : [];
   const spriteAssets = project
@@ -861,9 +885,10 @@ export function MapEditorWorkspace({
       <section className="relative flex flex-1 flex-col overflow-hidden bg-surface-950">
         <div className="flex items-center justify-between border-b border-slate-800 bg-surface-900/90 px-4 py-2">
           <div className="flex items-center gap-3">
-            <span className="text-xs font-semibold text-white">{map.name}</span>
+            <span className="text-xs font-semibold text-white">{displayedMap.name}</span>
             <span className="font-mono text-[11px] text-slate-400">
-              {map.width}×{map.height} · {mapEvents.length} événement(s)
+              {displayedMap.width}×{displayedMap.height} · {(displayedMap.events ?? []).length}{' '}
+              événement(s)
             </span>
           </div>
 

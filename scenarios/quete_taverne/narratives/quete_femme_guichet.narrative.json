@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "id": "quete_femme_guichet",
+  "name": "Briefing — Femme au guichet",
+  "entryNodeId": "n_check_accepted",
+  "nodes": [
+    {
+      "id": "n_check_accepted",
+      "type": "condition",
+      "position": {
+        "x": 40,
+        "y": 140
+      },
+      "title": "Quête déjà acceptée ?",
+      "condition": "flag(\"quete_prime_acceptee\")",
+      "trueNextNodeId": "n_already_accepted",
+      "falseNextNodeId": "n_intro"
+    },
+    {
+      "id": "n_intro",
+      "type": "dialogue",
+      "position": {
+        "x": 320,
+        "y": 180
+      },
+      "title": "Accueil au guichet",
+      "speaker": "Femme au guichet",
+      "text": "Bienvenue à la Taverne ! Si vous cherchez du travail, nous avons un contrat urgent : un Ogre Sombre terrorise les routes depuis le donjon voisin. La guilde offre 120 pièces d’or pour sa tête.",
+      "choices": [
+        {
+          "id": "c_accept",
+          "label": "J’accepte la prime ! Où se trouve le donjon ?",
+          "nextNodeId": "n_accept_action"
+        },
+        {
+          "id": "c_info",
+          "label": "Que faut-il savoir avant d’y entrer ?",
+          "nextNodeId": "n_tips"
+        },
+        {
+          "id": "c_later",
+          "label": "Je vais d’abord finir ma chope.",
+          "nextNodeId": "n_end"
+        }
+      ]
+    },
+    {
+      "id": "n_tips",
+      "type": "dialogue",
+      "position": {
+        "x": 640,
+        "y": 280
+      },
+      "title": "Renseignements",
+      "speaker": "Femme au guichet",
+      "text": "Le couloir est gardé par deux sbires gobelins, mais un coffre contenant une potion y a été abandonné. Le Boss vous attend tout au fond dans la grande salle.",
+      "choices": [
+        {
+          "id": "c_accept_after",
+          "label": "Parfait, je prends le contrat !",
+          "nextNodeId": "n_accept_action"
+        }
+      ]
+    },
+    {
+      "id": "n_accept_action",
+      "type": "action",
+      "position": {
+        "x": 640,
+        "y": 80
+      },
+      "title": "Accepter contrat + Potion",
+      "effects": [
+        {
+          "type": "set_var",
+          "key": "quete_prime_acceptee",
+          "value": true
+        },
+        {
+          "type": "give_item",
+          "itemId": "potion_soin",
+          "quantity": 1
+        }
+      ],
+      "nextNodeId": "n_accepted_bye"
+    },
+    {
+      "id": "n_accepted_bye",
+      "type": "dialogue",
+      "position": {
+        "x": 960,
+        "y": 80
+      },
+      "title": "Bonne chasse",
+      "speaker": "Femme au guichet",
+      "text": "Contrat signé ! Prenez cette potion de soin offerte par la maison. Sortez par la grande porte au sud de la taverne pour rejoindre le donjon.",
+      "nextNodeId": "n_end"
+    },
+    {
+      "id": "n_already_accepted",
+      "type": "dialogue",
+      "position": {
+        "x": 320,
+        "y": 20
+      },
+      "title": "Rappel de quête",
+      "speaker": "Femme au guichet",
+      "text": "Le contrat est toujours actif ! Le donjon vous attend derrière la porte de sortie au sud. Revenez avec la preuve de la défaite de l’Ogre Sombre pour vos 120 pièces d’or.",
+      "nextNodeId": "n_end"
+    },
+    {
+      "id": "n_end",
+      "type": "end",
+      "position": {
+        "x": 1240,
+        "y": 140
+      },
+      "title": "Fin"
+    }
+  ]
+}

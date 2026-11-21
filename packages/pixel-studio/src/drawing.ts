@@ -1,6 +1,12 @@
 import type { ColorRGBA } from '@rpg-player/core-types';
 import { clampByte } from './color.js';
-import type { PixelChange, PixelLayerRuntime, PixelPoint, RgbaTuple } from './types.js';
+import type {
+  PixelChange,
+  PixelLayerRuntime,
+  PixelPoint,
+  PixelShapeToolId,
+  RgbaTuple,
+} from './types.js';
 
 /**
  * Pixel-perfect integer Bresenham line algorithm (inclusive of both endpoints).
@@ -139,4 +145,133 @@ export function finalizeStrokeChanges(changeMap: StrokeChangeMap): PixelChange[]
     }
   }
   return changes;
+}
+
+/**
+ * Resolves the shape end point, optionally constraining to a 1:1 square/circle
+ * (or 0°/45°/90° angle for lines) just like Paint / Aseprite when holding Shift.
+ */
+export function constrainShapeEndPoint(
+  shape: PixelShapeToolId,
+  start: PixelPoint,
+  end: PixelPoint,
+  lockAspect: boolean,
+): PixelPoint {
+  const sx = Math.trunc(start.x);
+  const sy = Math.trunc(start.y);
+  const ex = Math.trunc(end.x);
+  const ey = Math.trunc(end.y);
+
+  if (!lockAspect) {
+    return { x: ex, y: ey };
+  }
+
+  const dx = ex - sx;
+  const dy = ey - sy;
+  const absX = Math.abs(dx);
+  const absY = Math.abs(dy);
+
+  if (shape === 'line') {
+    if (absX === 0 && absY === 0) return { x: sx, y: sy };
+    const ratio = absX > 0 ? absY / absX : Infinity;
+    if (ratio < 0.414) {
+      return { x: ex, y: sy }; // horizontal
+    }
+    if (ratio > 2.414) {
+      return { x: sx, y: ey }; // vertical
+    }
+    const side = Math.max(absX, absY);
+    return {
+      x: sx + (dx >= 0 ? side : -side),
+      y: sy + (dy >= 0 ? side : -side),
+    };
+  }
+
+  const side = Math.max(absX, absY);
+  return {
+    x: sx + (dx >= 0 ? side : -side),
+    y: sy + (dy >= 0 ? side : -side),
+  };
+}
+
+/**
+ * Computes crisp pixel-art coordinates for a draggable rectangle/square,
+ * ellipse/circle, or Bresenham line between `start` and `end`.
+ */
+export function computeShapePixels(
+  shape: PixelShapeToolId,
+  start: PixelPoint,
+  end: PixelPoint,
+  options: { filled: boolean; lockAspect: boolean },
+): PixelPoint[] {
+  const sx = Math.trunc(start.x);
+  const sy = Math.trunc(start.y);
+  const resolved = constrainShapeEndPoint(shape, { x: sx, y: sy }, end, options.lockAspect);
+  const ex = resolved.x;
+  const ey = resolved.y;
+
+  if (shape === 'line') {
+    return bresenhamLine({ x: sx, y: sy }, { x: ex, y: ey });
+  }
+
+  const minX = Math.min(sx, ex);
+  const maxX = Math.max(sx, ex);
+  const minY = Math.min(sy, ey);
+  const maxY = Math.max(sy, ey);
+
+  if (shape === 'rect') {
+    const pts: PixelPoint[] = [];
+    for (let y = minY; y <= maxY; y += 1) {
+      for (let x = minX; x <= maxX; x += 1) {
+        if (options.filled || x === minX || x === maxX || y === minY || y === maxY) {
+          pts.push({ x, y });
+        }
+      }
+    }
+    return pts;
+  }
+
+  // Pixel-perfect symmetric ellipse / circle over [minX..maxX] x [minY..maxY]
+  const w = maxX - minX + 1;
+  const h = maxY - minY + 1;
+  if (w <= 2 || h <= 2) {
+    const pts: PixelPoint[] = [];
+    for (let y = minY; y <= maxY; y += 1) {
+      for (let x = minX; x <= maxX; x += 1) {
+        pts.push({ x, y });
+      }
+    }
+    return pts;
+  }
+
+  const cx = (minX + maxX) / 2;
+  const cy = (minY + maxY) / 2;
+  const rx = w / 2;
+  const ry = h / 2;
+
+  const isInside = (x: number, y: number): boolean => {
+    const nx = (x - cx) / rx;
+    const ny = (y - cy) / ry;
+    return nx * nx + ny * ny <= 1.0;
+  };
+
+  const pts: PixelPoint[] = [];
+  for (let y = minY; y <= maxY; y += 1) {
+    for (let x = minX; x <= maxX; x += 1) {
+      if (!isInside(x, y)) continue;
+      if (options.filled) {
+        pts.push({ x, y });
+      } else {
+        const isEdge =
+          !isInside(x - 1, y) ||
+          !isInside(x + 1, y) ||
+          !isInside(x, y - 1) ||
+          !isInside(x, y + 1);
+        if (isEdge) {
+          pts.push({ x, y });
+        }
+      }
+    }
+  }
+  return pts;
 }

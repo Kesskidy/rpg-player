@@ -306,4 +306,247 @@ describe('vtt-network authoritative room manager & dice', () => {
       expect(plr?.connected).toBe(false);
     }
   });
+
+  it('rejects malformed, null, incomplete, and unknown WebSocket payloads without throwing (Bug #1)', () => {
+    const manager = new VttRoomManager();
+    const router = createVttProtocolRouter(manager);
+
+    const received: VttServerMessage[] = [];
+    const socket: VttSocketLike = {
+      readyState: 1,
+      send(data: string) {
+        received.push(JSON.parse(data) as VttServerMessage);
+      },
+    };
+    router.register(socket);
+
+    const badPayloads = [
+      'null',
+      '123',
+      '[]',
+      '{"type":"create_room"}',
+      '{"type":"join_room"}',
+      '{"type":"foo"}',
+      '{"type":"move_token","tokenId":"t1","x":"not-a-number","y":2}',
+    ];
+
+    for (const payload of badPayloads) {
+      expect(() => router.handleRawMessage(socket, payload)).not.toThrow();
+    }
+
+    expect(received).toHaveLength(badPayloads.length);
+    for (const msg of received) {
+      expect(msg.type).toBe('error');
+    }
+
+    // Also test unknown type AFTER joining a valid room
+    router.handleRawMessage(
+      socket,
+      JSON.stringify({
+        type: 'create_room',
+        roomName: 'Table Sûre',
+        gmName: 'MJ',
+        initialMap: makeTestMap(),
+      }),
+    );
+    received.length = 0;
+    expect(() => router.handleRawMessage(socket, '{"type":"foo"}')).not.toThrow();
+    expect(received[0]?.type).toBe('error');
+    if (received[0]?.type === 'error') {
+      expect(received[0].code).toBe('UNKNOWN_MESSAGE');
+    }
+  });
+
+  it('prevents anti-cheat leaks: hidden token name, teleport distance, and fogged map events (Bug #9)', () => {
+    const manager = new VttRoomManager();
+    const map = makeTestMap();
+    map.events = [
+      {
+        id: 'ev_trap_secret',
+        name: 'Piège Mortel Secret',
+        kind: 'zone',
+        trigger: 'touch',
+        x: 0,
+        y: 0,
+        spriteAssetId: null,
+        narrativeId: null,
+        isSolid: false,
+        plane: 'below',
+      },
+      {
+        id: 'ev_visible_npc',
+        name: 'Aubergiste',
+        kind: 'npc',
+        trigger: 'interact',
+        x: 5,
+        y: 4,
+        spriteAssetId: null,
+        narrativeId: null,
+        isSolid: true,
+        plane: 'y_sorted',
+      },
+    ];
+
+    const created = manager.handleMessage(null, null, {
+      type: 'create_room',
+      roomName: 'Donjon Secret',
+      gmName: 'MJ',
+      initialMap: map,
+    });
+    const roomCode = created.roomCode!;
+    const gmId = created.participantId!;
+
+    const joined = manager.handleMessage(null, null, {
+      type: 'join_room',
+      roomCode,
+      playerName: 'Voleur',
+    });
+    const playerId = joined.participantId!;
+
+    // Spawn an invisible monster adjacent to spawn at (4, 5)
+    manager.handleMessage(roomCode, gmId, {
+      type: 'spawn_token',
+      token: {
+        name: 'Assassin Invisible Secret',
+        kind: 'monster',
+        x: 4,
+        y: 5,
+        color: '#ef4444',
+        spriteAssetId: null,
+        ownerIds: [],
+        hp: 50,
+        maxHp: 50,
+        mp: 0,
+        maxMp: 0,
+        lightRadius: 0,
+        visibleToPlayers: false,
+        isSolid: true,
+      },
+    });
+
+    const playerView = manager.projectStateFor(roomCode, playerId)!;
+    const playerToken = playerView.tokens.find((t) => t.ownerIds.includes(playerId))!;
+
+    // 1. Fogged map events must NOT be sent to players
+    expect(playerView.activeMap.events.some((e) => e.id === 'ev_trap_secret')).toBe(false);
+    expect(playerView.activeMap.events.some((e) => e.id === 'ev_visible_npc')).toBe(true);
+    expect(
+      manager.projectStateFor(roomCode, gmId)!.activeMap.events.some((e) => e.id === 'ev_trap_secret'),
+    ).toBe(true);
+
+    // 2. Bumping into hidden solid token must NOT leak its name!
+    const bump = manager.handleMessage(roomCode, playerId, {
+      type: 'move_token',
+      tokenId: playerToken.id,
+      x: 4,
+      y: 5,
+    });
+    expect(bump.ok).toBe(false);
+    expect(bump.errorCode).toBe('TOKEN_BLOCKED');
+    expect(bump.errorMessage).not.toContain('Assassin');
+
+    // 3. Teleporting across the map (> 6 tiles) is rejected for players
+    const farMove = manager.handleMessage(roomCode, playerId, {
+      type: 'move_token',
+      tokenId: playerToken.id,
+      x: 9,
+      y: 9,
+    });
+    expect(farMove.ok).toBe(true); // dist is max(4,4) = 4 <= 6
+    const tooFarMove = manager.handleMessage(roomCode, playerId, {
+      type: 'move_token',
+      tokenId: playerToken.id,
+      x: 0,
+      y: 0,
+    });
+    expect(tooFarMove.ok).toBe(false);
+    expect(tooFarMove.errorCode).toBe('MOVE_TOO_FAR');
+  });
+
+  it('supports sessionToken reconnection, blocks duplicate join on same socket, and prunes idle rooms (Bug #10)', () => {
+    const manager = new VttRoomManager();
+    const router = createVttProtocolRouter(manager);
+
+    const makeMockSocket = () => {
+      const received: VttServerMessage[] = [];
+      const socket: VttSocketLike = {
+        readyState: 1,
+        send(data: string) {
+          received.push(JSON.parse(data) as VttServerMessage);
+        },
+      };
+      return { socket, received };
+    };
+
+    const gm = makeMockSocket();
+    const plr1 = makeMockSocket();
+    router.register(gm.socket);
+    router.register(plr1.socket);
+
+    router.handleRawMessage(
+      gm.socket,
+      JSON.stringify({
+        type: 'create_room',
+        roomName: 'Campagne',
+        gmName: 'MJ',
+        initialMap: makeTestMap(),
+      }),
+    );
+    const gmJoined = gm.received.find((m) => m.type === 'room_joined')!;
+    expect(gmJoined.type).toBe('room_joined');
+    if (gmJoined.type !== 'room_joined') return;
+    const roomCode = gmJoined.roomCode;
+
+    // Duplicate create_room on already-joined socket is refused
+    gm.received.length = 0;
+    router.handleRawMessage(
+      gm.socket,
+      JSON.stringify({
+        type: 'create_room',
+        roomName: 'Autre',
+        gmName: 'MJ',
+        initialMap: makeTestMap(),
+      }),
+    );
+    expect(gm.received[0]?.type).toBe('error');
+    if (gm.received[0]?.type === 'error') {
+      expect(gm.received[0].code).toBe('ALREADY_IN_ROOM');
+    }
+
+    // Player joins and receives a sessionToken
+    router.handleRawMessage(
+      plr1.socket,
+      JSON.stringify({ type: 'join_room', roomCode, playerName: 'Alice' }),
+    );
+    const plrJoined = plr1.received.find((m) => m.type === 'room_joined')!;
+    expect(plrJoined.type).toBe('room_joined');
+    if (plrJoined.type !== 'room_joined') return;
+    expect(plrJoined.sessionToken).toBeTruthy();
+
+    // Player disconnects and reconnects on a NEW socket using sessionToken -> reclaims same seat!
+    router.unregister(plr1.socket);
+    const plr2 = makeMockSocket();
+    router.register(plr2.socket);
+    router.handleRawMessage(
+      plr2.socket,
+      JSON.stringify({
+        type: 'join_room',
+        roomCode,
+        playerName: 'Alice',
+        sessionToken: plrJoined.sessionToken,
+      }),
+    );
+    const reconnected = plr2.received.find((m) => m.type === 'room_joined')!;
+    expect(reconnected.type).toBe('room_joined');
+    if (reconnected.type !== 'room_joined') return;
+    expect(reconnected.participantId).toBe(plrJoined.participantId);
+    expect(reconnected.state.participants).toHaveLength(2);
+    expect(reconnected.state.tokens.filter((t) => t.kind === 'player')).toHaveLength(1);
+
+    // Disconnect everyone and prune idle room
+    router.unregister(gm.socket);
+    router.unregister(plr2.socket);
+    expect(manager.pruneIdleRooms(0, Date.now() + 1000)).toContain(roomCode);
+    expect(manager.getRoomCodes()).not.toContain(roomCode);
+  });
 });

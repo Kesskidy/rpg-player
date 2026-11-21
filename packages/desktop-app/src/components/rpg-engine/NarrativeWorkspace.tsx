@@ -13,7 +13,7 @@ import {
   NarrativeRunner,
   type NarrativeStepState,
 } from '@rpg-player/rpg-engine';
-import { saveNarrative } from '../../storage/project-service';
+import { formatSaveFeedback, saveNarrative } from '../../storage/project-service';
 import { DialogueOverlay } from './DialogueOverlay';
 
 interface NarrativeWorkspaceProps {
@@ -81,7 +81,10 @@ export function NarrativeWorkspace({
     try {
       const saved = await saveNarrative(storage, project, activeGraph);
       onProjectUpdated(saved.manifest);
-      setFeedback({ kind: 'ok', text: `Sauvegardé : ${saved.meta.filePath}` });
+      setFeedback({
+        kind: 'ok',
+        text: formatSaveFeedback(storage, `Sauvegardé : ${saved.meta.filePath}`),
+      });
     } catch (error) {
       setFeedback({
         kind: 'error',

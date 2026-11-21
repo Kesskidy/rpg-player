@@ -11,6 +11,7 @@ import {
 } from './document.js';
 import {
   bresenhamLine,
+  computeShapePixels,
   finalizeStrokeChanges,
   stampBrush,
   type StrokeChangeMap,
@@ -19,8 +20,10 @@ import { exportPixelAsset } from './exporter.js';
 import { encodeAnimatedGif } from './gif-encoder.js';
 import {
   DocumentFramesSnapshotCommand,
+  FrameDurationCommand,
   FrameLayersSnapshotCommand,
   HistoryStack,
+  LayerMetadataCommand,
   PixelStrokeCommand,
 } from './history.js';
 import type {
@@ -33,6 +36,7 @@ import type {
   PixelFrameRuntime,
   PixelLayerRuntime,
   PixelPoint,
+  PixelShapeToolId,
   PixelStudioState,
   PixelToolId,
 } from './types.js';
@@ -64,6 +68,8 @@ export class PixelStudioEngine {
       activeTool: 'pencil',
       activeColor: hexToRgba(firstColor),
       brushSize: 1,
+      shapeFilled: false,
+      shapeLockAspect: false,
       activeFrameIndex: 0,
       activeLayerId: firstLayer.id,
       showGrid: true,
@@ -152,6 +158,74 @@ export class PixelStudioEngine {
     if (this.state.brushSize === clamped) return;
     this.state = { ...this.state, brushSize: clamped };
     this.emitChange();
+  }
+
+  setShapeFilled(filled: boolean): void {
+    if (this.state.shapeFilled === filled) return;
+    this.state = { ...this.state, shapeFilled: filled };
+    this.emitChange();
+  }
+
+  setShapeLockAspect(locked: boolean): void {
+    if (this.state.shapeLockAspect === locked) return;
+    this.state = { ...this.state, shapeLockAspect: locked };
+    this.emitChange();
+  }
+
+  /**
+   * Commits a pixel-perfect shape (rectangle/square, ellipse/circle, or line)
+   * onto the active layer as a single atomic Undo/Redo command.
+   */
+  commitShape(
+    shape: PixelShapeToolId,
+    start: PixelPoint,
+    end: PixelPoint,
+    overrideOptions?: { filled?: boolean; lockAspect?: boolean },
+  ): boolean {
+    const layer = this.getActiveLayer();
+    if (!layer || layer.locked || !layer.visible) {
+      return false;
+    }
+
+    const filled = overrideOptions?.filled ?? this.state.shapeFilled;
+    const lockAspect = overrideOptions?.lockAspect ?? this.state.shapeLockAspect;
+    const points = computeShapePixels(shape, start, end, { filled, lockAspect });
+    const stampSize = filled && shape !== 'line' ? 1 : this.state.brushSize;
+    const changes: StrokeChangeMap = new Map();
+
+    for (const pt of points) {
+      stampBrush(
+        layer,
+        this.document.width,
+        this.document.height,
+        pt,
+        stampSize,
+        this.state.activeColor,
+        changes,
+      );
+    }
+
+    const finalized = finalizeStrokeChanges(changes);
+    if (finalized.length === 0) {
+      return false;
+    }
+
+    const label =
+      shape === 'rect'
+        ? filled
+          ? 'Rectangle rempli'
+          : 'Rectangle'
+        : shape === 'ellipse'
+          ? filled
+            ? 'Cercle/Ellipse rempli'
+            : 'Cercle/Ellipse'
+          : 'Ligne';
+
+    this.history.pushExecuted(
+      new PixelStrokeCommand(label, this.state.activeFrameIndex, layer.id, finalized),
+    );
+    this.emitChange();
+    return true;
   }
 
   setShowGrid(show: boolean): void {
@@ -412,12 +486,13 @@ export class PixelStudioEngine {
 
   setFrameDuration(index: number, durationMs: number): boolean {
     const clamped = Math.max(16, Math.min(5000, Math.trunc(durationMs)));
-    return this.mutateDocumentFrames('Durée frame', (frames) => {
-      const target = frames[index];
-      if (!target || target.durationMs === clamped) return false;
-      target.durationMs = clamped;
-      return true;
-    });
+    const target = this.document.frames[index];
+    if (!target || target.durationMs === clamped) return false;
+    const before = target.durationMs;
+    target.durationMs = clamped;
+    this.history.pushExecuted(new FrameDurationCommand(target.id, before, clamped));
+    this.emitChange();
+    return true;
   }
 
   addLayer(name?: string): PixelLayerRuntime {
@@ -512,42 +587,82 @@ export class PixelStudioEngine {
   }
 
   setLayerVisibility(layerId: string, visible: boolean): boolean {
-    return this.mutateActiveFrameLayers('Visibilité calque', (layers) => {
-      const target = layers.find((layer) => layer.id === layerId);
-      if (!target || target.visible === visible) return false;
-      target.visible = visible;
-      return true;
-    });
+    const target = this.getActiveFrame().layers.find((layer) => layer.id === layerId);
+    if (!target || target.visible === visible) return false;
+    const before = target.visible;
+    target.visible = visible;
+    this.history.pushExecuted(
+      new LayerMetadataCommand(
+        'Visibilité calque',
+        this.state.activeFrameIndex,
+        layerId,
+        'visible',
+        before,
+        visible,
+      ),
+    );
+    this.emitChange();
+    return true;
   }
 
   setLayerOpacity(layerId: string, opacity: number): boolean {
     const clamped = clampUnit(opacity);
-    return this.mutateActiveFrameLayers('Opacité calque', (layers) => {
-      const target = layers.find((layer) => layer.id === layerId);
-      if (!target || target.opacity === clamped) return false;
-      target.opacity = clamped;
-      return true;
-    });
+    const target = this.getActiveFrame().layers.find((layer) => layer.id === layerId);
+    if (!target || target.opacity === clamped) return false;
+    const before = target.opacity;
+    target.opacity = clamped;
+    this.history.pushExecuted(
+      new LayerMetadataCommand(
+        'Opacité calque',
+        this.state.activeFrameIndex,
+        layerId,
+        'opacity',
+        before,
+        clamped,
+      ),
+    );
+    this.emitChange();
+    return true;
   }
 
   setLayerLocked(layerId: string, locked: boolean): boolean {
-    return this.mutateActiveFrameLayers('Verrouillage calque', (layers) => {
-      const target = layers.find((layer) => layer.id === layerId);
-      if (!target || target.locked === locked) return false;
-      target.locked = locked;
-      return true;
-    });
+    const target = this.getActiveFrame().layers.find((layer) => layer.id === layerId);
+    if (!target || target.locked === locked) return false;
+    const before = target.locked;
+    target.locked = locked;
+    this.history.pushExecuted(
+      new LayerMetadataCommand(
+        'Verrouillage calque',
+        this.state.activeFrameIndex,
+        layerId,
+        'locked',
+        before,
+        locked,
+      ),
+    );
+    this.emitChange();
+    return true;
   }
 
   renameLayer(layerId: string, name: string): boolean {
     const trimmed = name.trim();
     if (!trimmed) return false;
-    return this.mutateActiveFrameLayers('Renommer calque', (layers) => {
-      const target = layers.find((layer) => layer.id === layerId);
-      if (!target || target.name === trimmed) return false;
-      target.name = trimmed;
-      return true;
-    });
+    const target = this.getActiveFrame().layers.find((layer) => layer.id === layerId);
+    if (!target || target.name === trimmed) return false;
+    const before = target.name;
+    target.name = trimmed;
+    this.history.pushExecuted(
+      new LayerMetadataCommand(
+        'Renommer calque',
+        this.state.activeFrameIndex,
+        layerId,
+        'name',
+        before,
+        trimmed,
+      ),
+    );
+    this.emitChange();
+    return true;
   }
 
   canUndo(): boolean {

@@ -434,11 +434,17 @@ export class MapEditorEngine {
     return this.map.events.find((ev) => ev.x === tx && ev.y === ty) ?? null;
   }
 
-  upsertEvent(event: MapEvent): void {
-    this.pushSnapshot();
-    const existingIdx = this.map.events.findIndex(
-      (item) => item.id === event.id || (item.x === event.x && item.y === event.y),
+  upsertEvent(event: MapEvent): boolean {
+    // Bug #12: never overwrite a different event occupying the target tile
+    const occupant = this.map.events.find(
+      (item) => item.id !== event.id && item.x === event.x && item.y === event.y,
     );
+    if (occupant) {
+      return false;
+    }
+
+    this.pushSnapshot();
+    const existingIdx = this.map.events.findIndex((item) => item.id === event.id);
     const cloned: MapEvent = {
       ...event,
       collider: event.collider ? { ...event.collider } : undefined,
@@ -449,6 +455,7 @@ export class MapEditorEngine {
       this.map.events.push(cloned);
     }
     this.emitChange();
+    return true;
   }
 
   removeEventById(eventId: string): boolean {
@@ -626,6 +633,15 @@ export class MapEditorEngine {
     return this.redoStack.length > 0;
   }
 
+  private ensureValidActiveLayer(): void {
+    if (!this.map.layers.some((layer) => layer.id === this.state.activeLayerId)) {
+      this.state = {
+        ...this.state,
+        activeLayerId: this.map.layers[0]?.id ?? 'layer_ground',
+      };
+    }
+  }
+
   undo(): boolean {
     if (this.pendingEditSnapshot) {
       this.endEdit();
@@ -634,6 +650,7 @@ export class MapEditorEngine {
     if (!previous) return false;
     this.redoStack.push(cloneTileMap(this.map));
     this.map = previous;
+    this.ensureValidActiveLayer();
     this.emitChange();
     return true;
   }
@@ -643,6 +660,7 @@ export class MapEditorEngine {
     if (!next) return false;
     this.undoStack.push(cloneTileMap(this.map));
     this.map = next;
+    this.ensureValidActiveLayer();
     this.emitChange();
     return true;
   }

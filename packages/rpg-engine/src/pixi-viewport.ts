@@ -27,6 +27,8 @@ export class PixiMapViewport {
   private readonly app = new Application();
   private initialized = false;
   private destroyed = false;
+  private resizeObserver: ResizeObserver | null = null;
+  private hasAutoCentered = false;
 
   private readonly worldContainer = new Container();
   private readonly mapBackdrop = new Graphics();
@@ -90,12 +92,18 @@ export class PixiMapViewport {
   }
 
   async init(container: HTMLElement): Promise<void> {
-    await this.app.init({
+    const baseOpts = {
       antialias: false,
       roundPixels: true,
-      background: '#0b0d12',
+      background: '#141218',
       resizeTo: container,
-    });
+    };
+
+    try {
+      await this.app.init({ ...baseOpts, preference: 'webgl' });
+    } catch {
+      await this.app.init({ ...baseOpts, preference: 'canvas' });
+    }
 
     if (this.destroyed) {
       this.app.destroy({ removeView: true });
@@ -104,6 +112,8 @@ export class PixiMapViewport {
 
     container.appendChild(this.app.canvas);
     this.app.canvas.style.display = 'block';
+    this.app.canvas.style.width = '100%';
+    this.app.canvas.style.height = '100%';
     this.app.canvas.style.imageRendering = 'pixelated';
 
     this.worldContainer.addChild(
@@ -125,9 +135,34 @@ export class PixiMapViewport {
     this.app.stage.addChild(this.worldContainer);
     this.initialized = true;
 
+    if (typeof ResizeObserver !== 'undefined') {
+      this.resizeObserver = new ResizeObserver(() => {
+        if (this.destroyed || !this.initialized) return;
+        this.app.resize();
+        if (!this.hasAutoCentered && this.app.screen.width > 0 && this.app.screen.height > 0) {
+          this.hasAutoCentered = true;
+          this.centerCameraOnMap();
+        }
+      });
+      this.resizeObserver.observe(container);
+    }
+
+    if (this.app.screen.width > 0 && this.app.screen.height > 0) {
+      this.hasAutoCentered = true;
+    }
     this.centerCameraOnMap();
     this.rebuildScene();
     this.app.ticker.add(this.onTick);
+  }
+
+  clearScene(): void {
+    if (!this.initialized) return;
+    this.clearContainer(this.belowContainer);
+    this.clearContainer(this.ySortedContainer);
+    this.clearContainer(this.aboveContainer);
+    this.playerVisualNode = null;
+    this.playerSpriteRef = null;
+    this.animatedEventSprites = [];
   }
 
   getCanvas(): HTMLCanvasElement | null {
@@ -547,6 +582,8 @@ export class PixiMapViewport {
   destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;
+    this.resizeObserver?.disconnect();
+    this.resizeObserver = null;
     if (this.initialized) {
       this.app.ticker.remove(this.onTick);
       this.app.destroy({ removeView: true }, { children: true, texture: false });

@@ -46,12 +46,18 @@ export class PixiVttViewport {
   }
 
   async init(container: HTMLElement): Promise<void> {
-    await this.app.init({
+    const baseOpts = {
       antialias: false,
       roundPixels: true,
-      background: '#080a0f',
+      background: '#141218',
       resizeTo: container,
-    });
+    };
+
+    try {
+      await this.app.init({ ...baseOpts, preference: 'webgl' });
+    } catch {
+      await this.app.init({ ...baseOpts, preference: 'canvas' });
+    }
 
     if (this.destroyed) {
       this.app.destroy({ removeView: true });
@@ -60,6 +66,8 @@ export class PixiVttViewport {
 
     container.appendChild(this.app.canvas);
     this.app.canvas.style.display = 'block';
+    this.app.canvas.style.width = '100%';
+    this.app.canvas.style.height = '100%';
     this.app.canvas.style.imageRendering = 'pixelated';
 
     this.worldContainer.addChild(
@@ -292,15 +300,16 @@ export class PixiVttViewport {
 
       if (token.maxHp > 0) {
         const pct = Math.max(0, Math.min(1, token.hp / token.maxHp));
-        const barW = ts * 0.76;
+        const barW = Math.max(ts * 0.76, entry ? entry.meta.gridWidth * 0.7 : ts * 0.76);
+        const spriteH = entry ? entry.meta.gridHeight : ts;
         const barX = cx - barW / 2;
-        const barY = token.y * ts - 4;
+        const barY = Math.round(footY - spriteH - 6);
         const hpBar = new Graphics();
         hpBar
-          .rect(barX, barY, barW, 3)
-          .fill({ color: 0x0f172a })
+          .rect(barX - 1, barY - 1, barW + 2, 5)
+          .fill({ color: 0x0b090e })
           .rect(barX, barY, barW * pct, 3)
-          .fill({ color: pct > 0.4 ? 0x22c55e : 0xef4444 });
+          .fill({ color: pct > 0.4 ? 0x3d9956 : 0xc83232 });
         container.addChild(hpBar);
       }
 
