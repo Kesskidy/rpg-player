@@ -17,6 +17,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@rpg-player/core-types": "*"
+    "@rpg-player/core-types": "*",
+    "image-q": "^4.0.0"
   }
 }

@@ -5,9 +5,10 @@ import type {
   ProjectManifest,
   ProjectStorageAdapter,
 } from '@rpg-player/core-types';
-import { PixelStudioEngine } from '@rpg-player/pixel-studio';
+import { PixelStudioEngine, type ImageToPixelArtResult } from '@rpg-player/pixel-studio';
 import { loadPixelAssetSource, savePixelAsset } from '../../storage/project-service';
 import { AssetSidebar, type NewAssetRequest } from './AssetSidebar';
+import { ImageToPixelArtModal } from './ImageToPixelArtModal';
 import { LayersPanel } from './LayersPanel';
 import { PalettePanel } from './PalettePanel';
 import { PixelCanvas } from './PixelCanvas';
@@ -69,6 +70,7 @@ export function PixelStudioWorkspace({
 
   const [feedback, setFeedback] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [converterOpen, setConverterOpen] = useState(false);
 
   const previewCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -240,12 +242,62 @@ export function PixelStudioWorkspace({
     });
   }
 
+  function handleImportConvertedAsLayer(
+    name: string,
+    result: ImageToPixelArtResult,
+    placement: 'center' | 'top-left',
+  ) {
+    engine.importRgbaAsLayer(name, result.width, result.height, result.rgba, placement);
+    for (const hex of result.extractedPalette.slice(0, 16)) {
+      engine.addPaletteColor(hex);
+    }
+    setFeedback({
+      kind: 'ok',
+      text: `Image « ${name} » (${result.width}×${result.height}) importée dans un nouveau calque.`,
+    });
+  }
+
+  function handleImportConvertedAsNewAsset(name: string, result: ImageToPixelArtResult) {
+    const id = slugifyId(name);
+    const nextEngine = new PixelStudioEngine({
+      assetId: id,
+      width: result.width,
+      height: result.height,
+      palette: result.extractedPalette.length > 0 ? result.extractedPalette : undefined,
+    });
+    const baseLayer = nextEngine.getActiveLayer();
+    if (baseLayer) {
+      baseLayer.pixels.set(result.rgba);
+      baseLayer.name = name;
+    }
+    setEngine(nextEngine);
+    setAssetId(id);
+    setAssetName(name);
+    setAssetType('sprite');
+    setTagsInput('imported, sprite');
+    setZoom(recommendedZoom(result.width, result.height));
+    setRenderVersion((version) => version + 1);
+    setFeedback({
+      kind: 'ok',
+      text: `Nouvel asset « ${name} » (${result.width}×${result.height}) créé depuis l’image.`,
+    });
+  }
+
   const previewScale = Math.max(1, Math.min(4, Math.floor(96 / Math.max(doc.width, doc.height))));
 
   return (
     <div className="flex flex-1 overflow-hidden">
       {/* Left Dock: Tools, Palette & Project Assets */}
       <aside className="flex w-64 flex-col border-r border-slate-800 bg-surface-900">
+        <div className="border-b border-slate-800 p-2.5">
+          <button
+            type="button"
+            onClick={() => setConverterOpen(true)}
+            className="w-full rounded-md bg-gradient-to-r from-indigo-600 to-cyan-600 px-3 py-2 text-xs font-semibold text-white shadow transition hover:from-indigo-500 hover:to-cyan-500"
+          >
+            Importer Image → Pixel Art
+          </button>
+        </div>
         <ToolbarPanel
           engine={engine}
           zoom={zoom}
@@ -377,6 +429,15 @@ export function PixelStudioWorkspace({
           )}
         </div>
       </aside>
+
+      <ImageToPixelArtModal
+        open={converterOpen}
+        activeCanvasWidth={doc.width}
+        activeCanvasHeight={doc.height}
+        onClose={() => setConverterOpen(false)}
+        onImportAsLayer={handleImportConvertedAsLayer}
+        onImportAsNewAsset={handleImportConvertedAsNewAsset}
+      />
     </div>
   );
 }

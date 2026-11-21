@@ -313,6 +313,50 @@ export class PixelStudioEngine {
     return newLayer;
   }
 
+  /**
+   * Imports an RGBA pixel buffer (e.g. from ImageToPixelArt) as a new editable layer
+   * inside the active frame, centered or aligned to top-left, with full Undo/Redo support.
+   */
+  importRgbaAsLayer(
+    name: string,
+    srcWidth: number,
+    srcHeight: number,
+    srcRgba: Uint8ClampedArray,
+    placement: 'center' | 'top-left' = 'center',
+  ): PixelLayerRuntime {
+    const layerName = name.trim() || 'Import Pixel Art';
+    const newLayer = createPixelLayer(this.document.width, this.document.height, layerName);
+
+    const offsetX =
+      placement === 'center' ? Math.floor((this.document.width - srcWidth) / 2) : 0;
+    const offsetY =
+      placement === 'center' ? Math.floor((this.document.height - srcHeight) / 2) : 0;
+
+    for (let sy = 0; sy < srcHeight; sy += 1) {
+      const dy = sy + offsetY;
+      if (dy < 0 || dy >= this.document.height) continue;
+      for (let sx = 0; sx < srcWidth; sx += 1) {
+        const dx = sx + offsetX;
+        if (dx < 0 || dx >= this.document.width) continue;
+        const srcOff = (sy * srcWidth + sx) * 4;
+        const dstOff = (dy * this.document.width + dx) * 4;
+        newLayer.pixels[dstOff] = srcRgba[srcOff] ?? 0;
+        newLayer.pixels[dstOff + 1] = srcRgba[srcOff + 1] ?? 0;
+        newLayer.pixels[dstOff + 2] = srcRgba[srcOff + 2] ?? 0;
+        newLayer.pixels[dstOff + 3] = srcRgba[srcOff + 3] ?? 0;
+      }
+    }
+
+    this.mutateActiveFrameLayers(`Importer "${layerName}"`, (layers) => {
+      layers.push(newLayer);
+      return true;
+    });
+
+    this.state = { ...this.state, activeLayerId: newLayer.id };
+    this.emitChange();
+    return newLayer;
+  }
+
   removeLayer(layerId: string): boolean {
     return this.mutateActiveFrameLayers('Supprimer calque', (layers) => {
       if (layers.length <= 1) {

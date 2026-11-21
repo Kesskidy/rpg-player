@@ -12,6 +12,7 @@ Suite tout-en-un dédiée à la création de **RPG 2D en pixel art** et aux **se
 - **Grilles flexibles** : presets standards (`16×16`, `24×24`, `32×32`, `48×48`, `64×64`, `128×128`) et dimensions personnalisées (`32×48`, `64×64`, etc.).
 - **Moteur headless pur TypeScript** : tracé Bresenham pixel-perfect, crayon, gomme, taille de brosse (`1–4px`), opacité pinceau, palette personnalisable, calques (visibilité, opacité, ordre, verrouillage, renommage) et historique **Undo/Redo**.
 - **Sauvegarde & Export** : génération simultanée d'une spritesheet **PNG** (encodeur RGBA pur TS), des métadonnées `AssetMeta` (`anchor`, `defaultCollider`, `animations`, `hitboxes`, `tags`) et d'une source éditable `.pxs.json` préservant les calques.
+- **Convertisseur Image → Pixel Art** : import PNG/JPG/WebP par hauteur cible (ratio conservé), pipette multi-couleurs avec tolérance RGB & flood-fill contigu depuis les bords, pixelisation stricte par couleur dominante (zéro flou bilinear) et quantification de palette optionnelle (`image-q`).
 
 ### 2. RPG Engine (Maps, Narration & Systèmes RPG)
 - **Éditeur de Tilemap PixiJS v8 (WebGL)** avec séparation stricte **Rendu Visuel vs Collisions** :
