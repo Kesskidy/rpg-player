@@ -22,7 +22,6 @@ import {
   MapEditorEngine,
   NarrativeRunner,
   PixiMapViewport,
-  TurnBasedCombatEngine,
   type CombatSnapshot,
   type MapEditorTool,
   type NarrativeStepState,
@@ -119,7 +118,7 @@ export function MapEditorWorkspace({
     runner: NarrativeRunner;
     step: NarrativeStepState;
   } | null>(null);
-  const [activeCombat, setActiveCombat] = useState<TurnBasedCombatEngine | null>(null);
+  const [activeCombatEnemyId, setActiveCombatEnemyId] = useState<string | null>(null);
   const [previewToast, setPreviewToast] = useState<string | null>(null);
 
   const [newMapName, setNewMapName] = useState('Donjon');
@@ -140,9 +139,9 @@ export function MapEditorWorkspace({
 
   // Pause PixiJS simulation whenever Dialogue, Combat, or Inventory modal is open
   useEffect(() => {
-    const paused = Boolean(activeDialogue || activeCombat || inventoryOpen);
+    const paused = Boolean(activeDialogue || activeCombatEnemyId || inventoryOpen);
     viewportRef.current?.setPaused(paused);
-  }, [activeDialogue, activeCombat, inventoryOpen]);
+  }, [activeDialogue, activeCombatEnemyId, inventoryOpen]);
 
   // Subscribe to headless MapEditorEngine updates
   useEffect(() => {
@@ -240,14 +239,7 @@ export function MapEditorWorkspace({
       setPreviewToast(`Monstre introuvable : ${enemyId}`);
       return;
     }
-    const combat = new TurnBasedCombatEngine(
-      database,
-      previewInventoryRef.current,
-      enemyId,
-      heroHp,
-      heroMp,
-    );
-    setActiveCombat(combat);
+    setActiveCombatEnemyId(enemyId);
   }
 
   function triggerMapEvent(event: MapEvent) {
@@ -288,7 +280,7 @@ export function MapEditorWorkspace({
       const step = runner.start();
       setInventoryTick((t) => t + 1);
 
-      if (step.status === 'dialogue') {
+      if (step.status === 'dialogue' || step.status === 'cinematic') {
         setActiveDialogue({ runner, step });
       } else if (step.triggeredBattleEnemyId) {
         launchBattle(step.triggeredBattleEnemyId);
@@ -335,19 +327,19 @@ export function MapEditorWorkspace({
             setInventoryOpen(false);
           } else if (activeDialogue) {
             setActiveDialogue(null);
-          } else if (!activeCombat) {
+          } else if (!activeCombatEnemyId) {
             handleSetMode('editor');
           }
           return;
         }
 
-        if (key === 'i' && !activeCombat && !activeDialogue) {
+        if (key === 'i' && !activeCombatEnemyId && !activeDialogue) {
           event.preventDefault();
           setInventoryOpen((open) => !open);
           return;
         }
 
-        if (activeCombat || activeDialogue || inventoryOpen) {
+        if (activeCombatEnemyId || activeDialogue || inventoryOpen) {
           return;
         }
 
@@ -434,12 +426,12 @@ export function MapEditorWorkspace({
       window.removeEventListener('keyup', handleKeyUp);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, editor, activeCombat, activeDialogue, inventoryOpen, database, narratives]);
+  }, [mode, editor, activeCombatEnemyId, activeDialogue, inventoryOpen, database, narratives]);
 
   function handleSetMode(nextMode: ViewportMode) {
     setMode(nextMode);
     setActiveDialogue(null);
-    setActiveCombat(null);
+    setActiveCombatEnemyId(null);
     setInventoryOpen(false);
     setPreviewToast(null);
 
@@ -615,7 +607,7 @@ export function MapEditorWorkspace({
   }
 
   function handleFinishCombat(finalSnap: CombatSnapshot) {
-    setActiveCombat(null);
+    setActiveCombatEnemyId(null);
     const eff = previewInventoryRef.current.computeEffectiveStats(database.hero.stats);
     if (finalSnap.phase === 'defeat') {
       setHeroHp(Math.max(1, Math.round(eff.maxHp * 0.5)));
@@ -992,6 +984,8 @@ export function MapEditorWorkspace({
         {activeDialogue && (
           <DialogueOverlay
             step={activeDialogue.step}
+            storage={storage}
+            project={project}
             onSelectChoice={(choiceId) => {
               const next = activeDialogue.runner.selectChoice(choiceId);
               setInventoryTick((t) => t + 1);
@@ -1033,11 +1027,14 @@ export function MapEditorWorkspace({
           onClose={() => setInventoryOpen(false)}
         />
 
-        {activeCombat && (
+        {activeCombatEnemyId && (
           <CombatOverlay
-            combat={activeCombat}
+            enemyId={activeCombatEnemyId}
             database={database}
             inventory={previewInventoryRef.current}
+            initialHeroHp={heroHp}
+            initialHeroMp={heroMp}
+            map={map}
             onFinish={handleFinishCombat}
           />
         )}

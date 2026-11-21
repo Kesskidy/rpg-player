@@ -1,6 +1,7 @@
 import type {
   AnchorPoint,
   AnimationClip,
+  AnimationEventMarker,
   AssetMeta,
   AssetType,
   ColorRGBA,
@@ -97,6 +98,27 @@ export interface ExportAssetOutput {
   rgba: Uint8ClampedArray;
   pngBytes: Uint8Array;
   meta: AssetMeta;
+}
+
+export interface OnionSkinOptions {
+  enabled: boolean;
+  showPrevious: boolean;
+  showNext: boolean;
+  /** Opacity in [0..1] for ghost frames (default 0.3). */
+  opacity: number;
+}
+
+export type TimelinePlaybackSpeed = 0.5 | 1 | 2;
+
+export interface TimelineStepResult {
+  /** Current 0-based position inside `clip.frames`. */
+  frameIndex: number;
+  /** Actual spritesheet frame index (`clip.frames[frameIndex]`). */
+  spriteFrame: number;
+  /** Event markers triggered on frames entered during this step. */
+  triggeredMarkers: AnimationEventMarker[];
+  /** True when a non-looping clip has reached the end of its last frame. */
+  completed: boolean;
 }
 
 export type EngineChangeListener = () => void;

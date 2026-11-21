@@ -3,6 +3,7 @@ import type {
   HistoryCommand,
   PixelChange,
   PixelDocumentRuntime,
+  PixelFrameRuntime,
   PixelLayerRuntime,
 } from './types.js';
 
@@ -83,6 +84,38 @@ export class FrameLayersSnapshotCommand implements HistoryCommand {
     const frame = doc.frames[this.frameIndex];
     if (!frame) return;
     frame.layers = this.beforeLayers.map(cloneLayer);
+  }
+}
+
+function cloneFrame(frame: PixelFrameRuntime): PixelFrameRuntime {
+  return {
+    id: frame.id,
+    durationMs: frame.durationMs,
+    layers: frame.layers.map(cloneLayer),
+  };
+}
+
+export class DocumentFramesSnapshotCommand implements HistoryCommand {
+  readonly label: string;
+  private readonly beforeFrames: PixelFrameRuntime[];
+  private readonly afterFrames: PixelFrameRuntime[];
+
+  constructor(
+    label: string,
+    beforeFrames: readonly PixelFrameRuntime[],
+    afterFrames: readonly PixelFrameRuntime[],
+  ) {
+    this.label = label;
+    this.beforeFrames = beforeFrames.map(cloneFrame);
+    this.afterFrames = afterFrames.map(cloneFrame);
+  }
+
+  apply(doc: PixelDocumentRuntime): void {
+    doc.frames = this.afterFrames.map(cloneFrame);
+  }
+
+  revert(doc: PixelDocumentRuntime): void {
+    doc.frames = this.beforeFrames.map(cloneFrame);
   }
 }
 

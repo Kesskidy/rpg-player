@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@rpg-player/core-types": "*",
+    "@rpg-player/pixel-studio": "*",
     "pixi.js": "^8.8.1"
   }
 }

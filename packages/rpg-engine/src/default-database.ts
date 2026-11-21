@@ -8,6 +8,52 @@ import {
 export function createDefaultRpgDatabase(): RpgDatabase {
   return {
     schemaVersion: RPG_DATABASE_SCHEMA_VERSION,
+    combatConfig: {
+      defaultMode: 'turn_based_animated',
+      allowModeSwitchInPreview: true,
+      dynamicSettings: {
+        heroAttackRange: 48,
+        heroAttackCooldownMs: 420,
+        defaultProjectileSpeed: 220,
+      },
+    },
+    characterSheets: {
+      sheet_chevalier: {
+        id: 'sheet_chevalier',
+        name: 'Aldric le Chevalier',
+        characterClass: 'Paladin',
+        role: 'hero',
+        level: 3,
+        spriteAssetId: 'hero_aventurier',
+        stats: { maxHp: 110, maxMp: 35, atk: 14, def: 6 },
+        attributes: { str: 15, dex: 11, int: 9, cha: 13 },
+        skillIds: ['frappe_lourde', 'soin_mineur', 'egide'],
+        equipment: { weapon: 'epee_fer' },
+        inventory: [{ itemId: 'potion_soin', quantity: 2 }],
+        gold: 40,
+        bio: 'Ancien écuyer de la Guilde, chargé de sécuriser le donjon nord.',
+        notes: 'Faiblesse : foudre. Serment de protection envers le village.',
+      },
+      sheet_mage: {
+        id: 'sheet_mage',
+        name: 'Lyra l’Arcaniste',
+        characterClass: 'Mage de Feu',
+        role: 'player_template',
+        level: 3,
+        spriteAssetId: null,
+        stats: { maxHp: 80, maxMp: 60, atk: 9, def: 4 },
+        attributes: { str: 7, dex: 12, int: 17, cha: 14 },
+        skillIds: ['boule_feu', 'soin_mineur'],
+        equipment: {},
+        inventory: [
+          { itemId: 'elixir_mana', quantity: 2 },
+          { itemId: 'potion_soin', quantity: 1 },
+        ],
+        gold: 55,
+        bio: 'Érudite itinérante étudiant les runes anciennes du Golem de Pierre.',
+        notes: 'Idéal comme modèle Joueur en Mode JDR / VTT.',
+      },
+    },
     hero: {
       name: 'Chevalier',
       stats: {
@@ -127,6 +173,16 @@ export function createDefaultRpgDatabase(): RpgDatabase {
         skillIds: ['frappe_lourde'],
         rewardItemId: 'cle_fer',
         rewardGold: 15,
+        aiProfile: {
+          behavior: 'hybrid',
+          aggroRange: 360,
+          attackRange: 44,
+          preferredRange: 145,
+          retreatRange: 75,
+          moveSpeed: 92,
+          attackCooldownMs: 1300,
+          projectileSpeed: 210,
+        },
       },
       slime_toxique: {
         id: 'slime_toxique',
@@ -141,6 +197,15 @@ export function createDefaultRpgDatabase(): RpgDatabase {
         skillIds: ['morsure_venin'],
         rewardItemId: 'potion_soin',
         rewardGold: 10,
+        aiProfile: {
+          behavior: 'melee',
+          aggroRange: 340,
+          attackRange: 38,
+          preferredRange: 38,
+          retreatRange: 0,
+          moveSpeed: 68,
+          attackCooldownMs: 1200,
+        },
       },
     },
   };

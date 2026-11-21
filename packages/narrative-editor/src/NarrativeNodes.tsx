@@ -146,6 +146,48 @@ function ActionNodeCard({ data, selected }: NodeProps<NarrativeFlowNode>) {
   );
 }
 
+function CinematicNodeCard({ data, selected }: NodeProps<NarrativeFlowNode>) {
+  const node = data.narrativeNode;
+  const cin = node.cinematic;
+  return (
+    <div
+      className={`w-60 rounded-lg border bg-[#121620] text-slate-100 shadow-lg ${
+        selected ? 'border-purple-400 ring-2 ring-purple-500/40' : 'border-slate-700'
+      }`}
+    >
+      <Handle type="target" position={Position.Left} className="!h-2.5 !w-2.5 !bg-purple-400" />
+      <div className="flex items-center justify-between rounded-t-lg border-b border-slate-800 bg-purple-950/60 px-2.5 py-1.5">
+        <span className="truncate text-[11px] font-semibold text-purple-200">
+          🎬 {node.title}
+        </span>
+        {data.isEntry && <EntryBadge />}
+      </div>
+      <div className="space-y-1 p-2.5 text-[10px] text-slate-300">
+        <div className="truncate font-mono text-purple-200">
+          {cin?.assetId ? `${cin.assetId} (${cin.clipName || 'default'})` : 'Aucun asset lié'}
+        </div>
+        <div className="flex flex-wrap gap-1">
+          <span className="rounded bg-purple-500/20 px-1.5 py-0.5 uppercase text-purple-300">
+            {cin?.displayMode ?? 'inset'}
+          </span>
+          {cin?.waitForCompletion && (
+            <span className="rounded bg-slate-800 px-1.5 py-0.5 text-slate-300">Attendre fin</span>
+          )}
+          {cin?.loopInBackground && (
+            <span className="rounded bg-cyan-500/20 px-1.5 py-0.5 text-cyan-300">Boucle fond</span>
+          )}
+        </div>
+      </div>
+      <Handle
+        type="source"
+        id="next"
+        position={Position.Right}
+        className="!h-2.5 !w-2.5 !bg-purple-400"
+      />
+    </div>
+  );
+}
+
 function EndNodeCard({ data, selected }: NodeProps<NarrativeFlowNode>) {
   return (
     <div
@@ -165,5 +207,6 @@ export const NARRATIVE_NODE_TYPES: NodeTypes = {
   dialogue: DialogueNodeCard,
   condition: ConditionNodeCard,
   action: ActionNodeCard,
+  cinematic: CinematicNodeCard,
   end: EndNodeCard,
 };

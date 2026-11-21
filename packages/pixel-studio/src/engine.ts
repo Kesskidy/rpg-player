@@ -1,11 +1,12 @@
 import type { ColorRGBA, HexColor, PixelDocumentSerialized } from '@rpg-player/core-types';
 import { clampUnit, hexToRgba, TRANSPARENT_RGBA } from './color.js';
-import { compositeFrame } from './compositor.js';
+import { compositeFrame, compositeFrameWithOnionSkin } from './compositor.js';
 import {
   cloneLayer,
   createPixelDocument,
   createPixelLayer,
   deserializeDocument,
+  generateStudioId,
   serializeDocument,
 } from './document.js';
 import {
@@ -15,7 +16,9 @@ import {
   type StrokeChangeMap,
 } from './drawing.js';
 import { exportPixelAsset } from './exporter.js';
+import { encodeAnimatedGif } from './gif-encoder.js';
 import {
+  DocumentFramesSnapshotCommand,
   FrameLayersSnapshotCommand,
   HistoryStack,
   PixelStrokeCommand,
@@ -25,6 +28,7 @@ import type {
   EngineChangeListener,
   ExportAssetOptions,
   ExportAssetOutput,
+  OnionSkinOptions,
   PixelDocumentRuntime,
   PixelFrameRuntime,
   PixelLayerRuntime,
@@ -289,6 +293,13 @@ export class PixelStudioEngine {
   }
 
   private ensureValidActiveLayer(): void {
+    const clampedFrameIdx = Math.max(
+      0,
+      Math.min(this.document.frames.length - 1, this.state.activeFrameIndex),
+    );
+    if (clampedFrameIdx !== this.state.activeFrameIndex) {
+      this.state = { ...this.state, activeFrameIndex: clampedFrameIdx };
+    }
     const frame = this.getActiveFrame();
     if (!frame.layers.some((layer) => layer.id === this.state.activeLayerId)) {
       const topLayer = frame.layers[frame.layers.length - 1];
@@ -296,6 +307,117 @@ export class PixelStudioEngine {
         this.state = { ...this.state, activeLayerId: topLayer.id };
       }
     }
+  }
+
+  private mutateDocumentFrames(
+    label: string,
+    mutator: (frames: PixelFrameRuntime[]) => boolean,
+  ): boolean {
+    const before = this.document.frames.map((f) => ({
+      id: f.id,
+      durationMs: f.durationMs,
+      layers: f.layers.map(cloneLayer),
+    }));
+    const changed = mutator(this.document.frames);
+    if (!changed) return false;
+    const command = new DocumentFramesSnapshotCommand(label, before, this.document.frames);
+    this.history.pushExecuted(command);
+    this.ensureValidActiveLayer();
+    this.emitChange();
+    return true;
+  }
+
+  getFrames(): readonly PixelFrameRuntime[] {
+    return this.document.frames;
+  }
+
+  getActiveFrameIndex(): number {
+    return this.state.activeFrameIndex;
+  }
+
+  setActiveFrame(index: number): void {
+    const clamped = Math.max(0, Math.min(this.document.frames.length - 1, Math.trunc(index)));
+    if (clamped === this.state.activeFrameIndex) return;
+    const nextFrame = this.document.frames[clamped]!;
+    const nextLayerId = nextFrame.layers[nextFrame.layers.length - 1]?.id ?? '';
+    this.state = {
+      ...this.state,
+      activeFrameIndex: clamped,
+      activeLayerId: nextLayerId,
+    };
+    this.emitChange();
+  }
+
+  addFrame(durationMs = 125): PixelFrameRuntime {
+    const newFrame: PixelFrameRuntime = {
+      id: generateStudioId('frame'),
+      durationMs: Math.max(16, Math.trunc(durationMs)),
+      layers: [createPixelLayer(this.document.width, this.document.height, 'Calque 1')],
+    };
+    const insertAt = this.state.activeFrameIndex + 1;
+    this.mutateDocumentFrames('Ajouter frame', (frames) => {
+      frames.splice(insertAt, 0, newFrame);
+      return true;
+    });
+    this.setActiveFrame(insertAt);
+    return newFrame;
+  }
+
+  duplicateFrame(sourceIndex = this.state.activeFrameIndex): PixelFrameRuntime | null {
+    const source = this.document.frames[sourceIndex];
+    if (!source) return null;
+    const copy: PixelFrameRuntime = {
+      id: generateStudioId('frame'),
+      durationMs: source.durationMs,
+      layers: source.layers.map((layer) => ({
+        ...cloneLayer(layer),
+        id: generateStudioId('layer'),
+      })),
+    };
+    const insertAt = sourceIndex + 1;
+    this.mutateDocumentFrames('Dupliquer frame', (frames) => {
+      frames.splice(insertAt, 0, copy);
+      return true;
+    });
+    this.setActiveFrame(insertAt);
+    return copy;
+  }
+
+  removeFrame(index: number): boolean {
+    if (this.document.frames.length <= 1) return false;
+    return this.mutateDocumentFrames('Supprimer frame', (frames) => {
+      if (index < 0 || index >= frames.length) return false;
+      frames.splice(index, 1);
+      return true;
+    });
+  }
+
+  reorderFrame(fromIndex: number, toIndex: number): boolean {
+    return this.mutateDocumentFrames('Réordonner frames', (frames) => {
+      if (
+        fromIndex === toIndex ||
+        fromIndex < 0 ||
+        toIndex < 0 ||
+        fromIndex >= frames.length ||
+        toIndex >= frames.length
+      ) {
+        return false;
+      }
+      const [moved] = frames.splice(fromIndex, 1);
+      if (!moved) return false;
+      frames.splice(toIndex, 0, moved);
+      return true;
+    });
+  }
+
+  setFrameDuration(index: number, durationMs: number): boolean {
+    const clamped = Math.max(16, Math.min(5000, Math.trunc(durationMs)));
+    return this.mutateDocumentFrames('Durée frame', (frames) => {
+      const target = frames[index];
+      if (!target || target.durationMs === clamped) return false;
+      target.durationMs = clamped;
+      return true;
+    });
   }
 
   addLayer(name?: string): PixelLayerRuntime {
@@ -457,8 +579,17 @@ export class PixelStudioEngine {
     return redone;
   }
 
+  renderFrame(frameIndex: number): Uint8ClampedArray {
+    const frame = this.document.frames[frameIndex] ?? this.getActiveFrame();
+    return compositeFrame(frame, this.document.width, this.document.height);
+  }
+
   renderActiveFrame(): Uint8ClampedArray {
     return compositeFrame(this.getActiveFrame(), this.document.width, this.document.height);
+  }
+
+  renderActiveFrameWithOnionSkin(options: OnionSkinOptions): Uint8ClampedArray {
+    return compositeFrameWithOnionSkin(this.document, this.state.activeFrameIndex, options);
   }
 
   serialize(): PixelDocumentSerialized {
@@ -467,5 +598,19 @@ export class PixelStudioEngine {
 
   exportAsset(options: ExportAssetOptions): ExportAssetOutput {
     return exportPixelAsset(this.document, options);
+  }
+
+  exportGif(options?: { scale?: number; loop?: boolean }): Uint8Array {
+    const frames = this.document.frames.map((frame) => ({
+      rgba: compositeFrame(frame, this.document.width, this.document.height),
+      durationMs: frame.durationMs,
+    }));
+    return encodeAnimatedGif({
+      width: this.document.width,
+      height: this.document.height,
+      frames,
+      scale: options?.scale ?? 1,
+      loop: options?.loop ?? true,
+    });
   }
 }

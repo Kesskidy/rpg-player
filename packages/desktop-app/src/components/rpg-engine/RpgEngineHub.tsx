@@ -114,12 +114,12 @@ export function RpgEngineHub({
                 : 'text-slate-400 hover:bg-surface-800 hover:text-slate-200'
             }`}
           >
-            Base de Données &amp; Combat
+            Base de Données, Fiches &amp; Combat
           </button>
         </div>
 
         <span className="text-[11px] text-slate-500">
-          Phase 3 — Narration, Inventaire &amp; Combat Tour par Tour
+          Cinématiques, Fiches Personnages &amp; Combat 3 Modes (Simple · Animé · Dynamique IA)
         </span>
       </div>
 

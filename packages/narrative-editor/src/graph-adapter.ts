@@ -81,6 +81,17 @@ export function narrativeGraphToFlow(graph: NarrativeGraph): {
           style: { stroke: '#fbbf24', strokeWidth: 2 },
         });
       }
+    } else if (n.type === 'cinematic') {
+      if (n.nextNodeId && validIds.has(n.nextNodeId)) {
+        edges.push({
+          id: `${n.id}::next->${n.nextNodeId}`,
+          source: n.id,
+          sourceHandle: 'next',
+          target: n.nextNodeId,
+          label: n.cinematic?.waitForCompletion ? 'Fin anim.' : 'Suite',
+          style: { stroke: '#c084fc', strokeWidth: 2 },
+        });
+      }
     }
   }
 
@@ -121,7 +132,7 @@ export function applyFlowConnection(
       }
     }
 
-    if (node.type === 'action') {
+    if (node.type === 'action' || node.type === 'cinematic') {
       return { ...node, nextNodeId: connection.target };
     }
 
@@ -165,6 +176,23 @@ export function createNarrativeNode(
         position,
         title: 'Action RPG',
         effects: [{ type: 'give_item', itemId: 'potion_soin', quantity: 1 }],
+        nextNodeId: null,
+      };
+    case 'cinematic':
+      return {
+        id,
+        type: 'cinematic',
+        position,
+        title: 'Cinématique',
+        cinematic: {
+          assetId: '',
+          clipName: 'idle',
+          displayMode: 'inset',
+          waitForCompletion: true,
+          loopInBackground: false,
+          playbackSpeed: 1,
+          caption: '',
+        },
         nextNodeId: null,
       };
     case 'end':

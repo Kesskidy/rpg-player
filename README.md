@@ -1,8 +1,8 @@
 # RPG Player Studio
 
-Suite tout-en-un dédiée à la création de **RPG 2D en pixel art** et aux **sessions JDR multijoueurs (VTT)**, articulée autour de **3 modules interconnectés** qui partagent un format de projet local-first unifié.
+Suite tout-en-un dédiée à la création de **RPG 2D en pixel art** et aux **sessions JDR multijoueurs (VTT)**, articulée autour de **4 modules interconnectés** qui partagent un format de projet local-first unifié.
 
-> Un asset dessiné dans **Pixel Studio** est immédiatement utilisable comme tuile ou sprite dans **RPG Engine** et comme token ou décor sur le plateau **VTT / Mode JDR**.
+> Un asset dessiné dans **Pixel Studio** ou animé dans **Animation Studio** est immédiatement utilisable dans **RPG Engine** (tuiles, sprites, cinématiques, VFX de combat) et sur le plateau **VTT / Mode JDR**.
 
 ---
 
@@ -14,19 +14,28 @@ Suite tout-en-un dédiée à la création de **RPG 2D en pixel art** et aux **se
 - **Sauvegarde & Export** : génération simultanée d'une spritesheet **PNG** (encodeur RGBA pur TS), des métadonnées `AssetMeta` (`anchor`, `defaultCollider`, `animations`, `hitboxes`, `tags`) et d'une source éditable `.pxs.json` préservant les calques.
 - **Convertisseur Image → Pixel Art** : import PNG/JPG/WebP par hauteur cible (ratio conservé), pipette multi-couleurs avec tolérance RGB & flood-fill contigu depuis les bords, pixelisation stricte par couleur dominante (zéro flou bilinear) et quantification de palette optionnelle (`image-q`).
 
-### 2. RPG Engine (Maps, Narration & Systèmes RPG)
+### 2. Animation Studio (Timeline, VFX & Cinématiques)
+- **Format unifié `AnimationClip`** pour 3 catégories : **VFX / Assets animés** (`vfx`), **Animations de combat** (`idle`, `move`, `attack_melee`, `attack_ranged`, `cast`, `hurt`, `death`) et **Cinématiques** (`cutscene`).
+- **Timeline multi-frames & multi-calques** : ajout, duplication, réorganisation, suppression, durée par frame (ms) ou FPS global, boucle (`loop`).
+- **Pelure d'oignon (Onion Skinning)** configurable (frame précédente teintée rouge, frame suivante teintée bleue, opacité réglable).
+- **Marqueurs d'événements (Event Markers)** sur des frames précises (`hit_frame`, `vfx_spawn`, `camera_shake`, `sfx`, `custom`).
+- **Prévisualisation temps réel** (Play/Pause, vitesses `×0.5 / ×1 / ×2`, flash visuel au passage des marqueurs) + export unifié Spritesheet PNG + `AnimationClip` JSON.
+
+### 3. RPG Engine (Maps, Narration, Fiches & Combat 3 Modes)
 - **Éditeur de Tilemap PixiJS v8 (WebGL)** avec séparation stricte **Rendu Visuel vs Collisions** :
   - **Calque de collisions indépendant** (`collisionLayer`) éditable librement case par case par-dessus n'importe quel décor.
   - **Superposition d'assets** : modes *Remplacer* et *Empiler* sur une même case (même bloquée).
   - **Pipeline 3 plans + Y-Sorting** : `below` (sols, tapis) → `y_sorted` (décors, meubles, PNJ, monstres et héros triés dynamiquement selon `Y` aux pieds) → `above` (cimes, arches, chapiteaux).
   - **Collisions d'entités & empreintes aux pieds** : drapeau `isSolid` et hitbox AABB configurable aux pieds (`32×16` pour un sprite `32×48`, `48×32` pour un boss `64×64`).
-- **Narration Nodale (style Twine)** : éditeur de graphe visuel **React Flow** (nœuds *Dialogue*, *Condition*, *Action RPG*, *Fin*) + évaluateur d'expressions sûr sans `eval` (`has_item("cle_fer")`, `flag(...)`, `var(...) >= 10`, `&&`, `||`, `!`).
-- **Systèmes RPG intégrés** :
-  - **Inventaire** : consommables, équipements (Arme/Armure/Accessoire avec bonus de stats), objets de quête, gestion des slots et du poids.
-  - **Combat tour par tour** : PV/PM/ATK/DEF, compétences, effets de statut (`burn`, `poison`, `shield`, `stun`), objets en combat, défense, fuite et butins.
-  - **Play Preview instantané** : déplacement fluide ZQSD/WASD/Flèches, animations `idle`/`walk`, dialogues PNJ (`E`), inventaire (`I`) et téléportation entre maps.
+- **Narration Nodale (style Twine) & Cinématiques** : éditeur de graphe visuel **React Flow** (nœuds *Dialogue*, *Cinématique*, *Condition*, *Action RPG*, *Fin*), lecture de `CinematicNode` (`fullscreen`, `inset`, `background` avec `waitForCompletion` et `loopInBackground`), évaluateur d'expressions sûr sans `eval` (`has_item("cle_fer")`, `flag(...)`, `var(...) >= 10`).
+- **Fiches Personnages (`CharacterSheetDef`)** : créateur/éditeur complet (Nom, Classe, Rôle, Niveau, Sprite, Stats PV/PM/ATK/DEF, Attributs JDR FOR/DEX/INT/CHA, Équipement, Compétences, Inventaire, Or, Biographie & Notes), export JSON, bouton *Appliquer comme Héros actif* et import en 1 clic côté MJ dans le VTT.
+- **Moteur de Combat modulaire (3 modes via Strategy Pattern)** :
+  1. **Minimaliste (`simple`)** : stats, barres de PV/PM et dégâts instantanés.
+  2. **Tour par tour animé (`turn_based_animated`)** : scène JRPG, lecture des `AnimationClip`, VFX d'impact, secousse caméra et réduction des PV synchronisée strictement sur le marqueur `hit_frame`.
+  3. **Dynamique IA (`dynamic_ai`)** : combat en temps réel en arène (déplacement ZQSD/Flèches, frappes mêlée, sorts projectiles) avec profils d'IA configurables par monstre (`melee` poursuite, `ranged` kiting + projectiles, `hybrid`) et respect des collisions de la map.
+- **Inventaire & Play Preview instantané** : consommables, équipements avec bonus de stats, objets de quête, dialogues (`E`), inventaire (`I`) et téléportation entre maps.
 
-### 3. VTT / Mode JDR (Multijoueur temps réel)
+### 4. VTT / Mode JDR (Multijoueur temps réel)
 - **Salons multijoueurs WebSocket** avec code d'invitation 6 caractères et mot de passe optionnel.
 - **Rôle Maître du Jeu (MJ / Admin)** vs **Rôle Joueur** enforced côté serveur :
   - Changement de scène global pour toute la table.

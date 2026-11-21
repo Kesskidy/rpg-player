@@ -1,6 +1,23 @@
 export const ASSET_SCHEMA_VERSION = 1 as const;
 
-export type AssetType = 'sprite' | 'tileset' | 'ui';
+export type AssetType = 'sprite' | 'tileset' | 'ui' | 'vfx' | 'cutscene';
+
+export type AnimationCategory = 'vfx' | 'combat' | 'cutscene';
+
+export type AnimationMarkerEvent =
+  | 'hit_frame'
+  | 'vfx_spawn'
+  | 'sfx'
+  | 'camera_shake'
+  | 'custom';
+
+export interface AnimationEventMarker {
+  /** Index inside `AnimationClip.frames` (0-based position in the clip timeline). */
+  frameIndex: number;
+  event: AnimationMarkerEvent;
+  /** Optional identifier (e.g. VFX asset id, SFX key, shake intensity). */
+  payload?: string;
+}
 
 /**
  * Anchor point in pixels relative to the frame's top-left corner.
@@ -32,14 +49,23 @@ export interface Hitbox {
   height: number;
 }
 
+/**
+ * Unified animation clip shared across Pixel Studio, Animation Studio,
+ * RPG Engine (combat, VFX, cutscenes) and VTT.
+ */
 export interface AnimationClip {
+  category?: AnimationCategory;
   frames: number[];
   fps: number;
+  /** Optional per-frame durations in ms (overrides `1000 / fps` when provided). */
+  frameDurationsMs?: number[];
   loop?: boolean;
+  /** Frame-accurate event markers (e.g. `hit_frame`, `vfx_spawn`, `camera_shake`). */
+  markers?: AnimationEventMarker[];
 }
 
 /**
- * Shared metadata for every visual asset exported by Pixel Studio
+ * Shared metadata for every visual asset exported by Pixel Studio / Animation Studio
  * and consumed by RPG Engine and VTT.
  */
 export interface AssetMeta {

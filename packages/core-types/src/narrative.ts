@@ -19,7 +19,23 @@ export interface DialogueChoice {
   effects?: NarrativeEffect[];
 }
 
-export type NarrativeNodeType = 'dialogue' | 'condition' | 'action' | 'end';
+export type CinematicDisplayMode = 'fullscreen' | 'inset' | 'background';
+
+export interface CinematicConfig {
+  /** AssetMeta.id of the animated spritesheet/cutscene to play. */
+  assetId: string;
+  /** Clip name inside `AssetMeta.animations` (defaults to first available clip). */
+  clipName: string;
+  displayMode: CinematicDisplayMode;
+  /** If true, waits for the animation to finish (or user skip) before advancing to `nextNodeId`. */
+  waitForCompletion: boolean;
+  /** If true, keeps looping in the background during subsequent dialogue nodes. */
+  loopInBackground: boolean;
+  playbackSpeed?: number;
+  caption?: string;
+}
+
+export type NarrativeNodeType = 'dialogue' | 'condition' | 'action' | 'cinematic' | 'end';
 
 export interface NarrativeNode {
   id: string;
@@ -35,7 +51,9 @@ export interface NarrativeNode {
   falseNextNodeId?: string | null;
   /** Used when type === 'action'. */
   effects?: NarrativeEffect[];
-  /** Default outgoing link (for action nodes or linear dialogue without choices). */
+  /** Used when type === 'cinematic'. */
+  cinematic?: CinematicConfig;
+  /** Default outgoing link (for action, cinematic, or linear dialogue without choices). */
   nextNodeId?: string | null;
 }
 

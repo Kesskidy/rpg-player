@@ -1,5 +1,5 @@
 import { blendPixelOver, clampUnit } from './color.js';
-import type { PixelDocumentRuntime, PixelFrameRuntime } from './types.js';
+import type { OnionSkinOptions, PixelDocumentRuntime, PixelFrameRuntime } from './types.js';
 
 /**
  * Flattens all visible layers of a frame bottom-to-top into a single RGBA buffer.
@@ -33,6 +33,81 @@ export function compositeFrame(
         opacity,
       );
     }
+  }
+
+  return output;
+}
+
+function blendTintedGhost(
+  dst: Uint8ClampedArray,
+  ghostRgba: Uint8ClampedArray,
+  tintR: number,
+  tintG: number,
+  tintB: number,
+  opacity: number,
+): void {
+  const pixelCount = dst.length / 4;
+  const alphaScale = clampUnit(opacity);
+  for (let i = 0; i < pixelCount; i += 1) {
+    const off = i * 4;
+    const ga = ghostRgba[off + 3] ?? 0;
+    if (ga === 0) continue;
+    const gr = Math.round(((ghostRgba[off] ?? 0) * 0.45 + tintR * 0.55));
+    const gg = Math.round(((ghostRgba[off + 1] ?? 0) * 0.45 + tintG * 0.55));
+    const gb = Math.round(((ghostRgba[off + 2] ?? 0) * 0.45 + tintB * 0.55));
+    blendPixelOver(dst, off, gr, gg, gb, ga, alphaScale);
+  }
+}
+
+/**
+ * Renders the active frame with optional previous (red-tinted) and next (blue-tinted)
+ * onion-skin ghost frames underneath for smooth frame-by-frame animation drawing.
+ */
+export function compositeFrameWithOnionSkin(
+  doc: PixelDocumentRuntime,
+  activeFrameIndex: number,
+  options: OnionSkinOptions,
+): Uint8ClampedArray {
+  const activeFrame = doc.frames[activeFrameIndex] ?? doc.frames[0];
+  if (!activeFrame) {
+    return new Uint8ClampedArray(doc.width * doc.height * 4);
+  }
+
+  const activeRgba = compositeFrame(activeFrame, doc.width, doc.height);
+  if (!options.enabled || options.opacity <= 0) {
+    return activeRgba;
+  }
+
+  const output = new Uint8ClampedArray(doc.width * doc.height * 4);
+  if (options.showPrevious && activeFrameIndex > 0) {
+    const prevFrame = doc.frames[activeFrameIndex - 1];
+    if (prevFrame) {
+      const prevRgba = compositeFrame(prevFrame, doc.width, doc.height);
+      blendTintedGhost(output, prevRgba, 239, 68, 68, options.opacity);
+    }
+  }
+  if (options.showNext && activeFrameIndex + 1 < doc.frames.length) {
+    const nextFrame = doc.frames[activeFrameIndex + 1];
+    if (nextFrame) {
+      const nextRgba = compositeFrame(nextFrame, doc.width, doc.height);
+      blendTintedGhost(output, nextRgba, 56, 189, 248, options.opacity);
+    }
+  }
+
+  const pixelCount = doc.width * doc.height;
+  for (let i = 0; i < pixelCount; i += 1) {
+    const off = i * 4;
+    const a = activeRgba[off + 3] ?? 0;
+    if (a === 0) continue;
+    blendPixelOver(
+      output,
+      off,
+      activeRgba[off] ?? 0,
+      activeRgba[off + 1] ?? 0,
+      activeRgba[off + 2] ?? 0,
+      a,
+      1,
+    );
   }
 
   return output;

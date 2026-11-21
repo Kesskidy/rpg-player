@@ -1,4 +1,5 @@
 import type {
+  CinematicConfig,
   DialogueChoice,
   NarrativeEffect,
   NarrativeGraph,
@@ -339,22 +340,27 @@ export interface EvaluatedDialogueChoice {
 }
 
 export interface NarrativeStepState {
-  status: 'dialogue' | 'ended';
+  status: 'dialogue' | 'cinematic' | 'ended';
   node: NarrativeNode | null;
   speaker: string;
   text: string;
   choices: EvaluatedDialogueChoice[];
   actionLogs: string[];
   triggeredBattleEnemyId: string | null;
+  /** Non-null when paused on a blocking `CinematicNode` (`waitForCompletion: true`). */
+  activeCinematic: CinematicConfig | null;
+  /** Optional looping cinematic running behind subsequent dialogue nodes. */
+  backgroundCinematic: CinematicConfig | null;
 }
 
 /**
- * Headless runtime interpreter stepping through a NarrativeGraph.
+ * Headless runtime interpreter stepping through a NarrativeGraph (including CinematicNodes).
  */
 export class NarrativeRunner {
   private readonly graph: NarrativeGraph;
   private readonly ctx: NarrativeRuntimeContext;
   private readonly nodeById: Map<string, NarrativeNode>;
+  private backgroundCinematic: CinematicConfig | null = null;
   private currentStep: NarrativeStepState = {
     status: 'ended',
     node: null,
@@ -363,6 +369,8 @@ export class NarrativeRunner {
     choices: [],
     actionLogs: [],
     triggeredBattleEnemyId: null,
+    activeCinematic: null,
+    backgroundCinematic: null,
   };
 
   constructor(graph: NarrativeGraph, ctx: NarrativeRuntimeContext) {
@@ -372,6 +380,7 @@ export class NarrativeRunner {
   }
 
   start(): NarrativeStepState {
+    this.backgroundCinematic = null;
     return this.goToNode(this.graph.entryNodeId, []);
   }
 
@@ -395,7 +404,10 @@ export class NarrativeRunner {
   }
 
   advance(): NarrativeStepState {
-    if (this.currentStep.status !== 'dialogue' || !this.currentStep.node) {
+    if (
+      (this.currentStep.status !== 'dialogue' && this.currentStep.status !== 'cinematic') ||
+      !this.currentStep.node
+    ) {
       return this.currentStep;
     }
     return this.goToNode(this.currentStep.node.nextNodeId ?? null, []);
@@ -423,6 +435,8 @@ export class NarrativeRunner {
           choices: [],
           actionLogs: logs,
           triggeredBattleEnemyId: battleEnemyId,
+          activeCinematic: null,
+          backgroundCinematic: null,
         };
         return this.currentStep;
       }
@@ -443,6 +457,29 @@ export class NarrativeRunner {
         continue;
       }
 
+      if (node.type === 'cinematic') {
+        const cin = node.cinematic ?? null;
+        if (cin?.loopInBackground) {
+          this.backgroundCinematic = { ...cin };
+        }
+        if (cin && cin.waitForCompletion) {
+          this.currentStep = {
+            status: 'cinematic',
+            node,
+            speaker: node.title,
+            text: cin.caption ?? '',
+            choices: [],
+            actionLogs: logs,
+            triggeredBattleEnemyId: battleEnemyId,
+            activeCinematic: { ...cin },
+            backgroundCinematic: this.backgroundCinematic,
+          };
+          return this.currentStep;
+        }
+        cursorId = node.nextNodeId ?? null;
+        continue;
+      }
+
       // Dialogue node reached
       const choices: EvaluatedDialogueChoice[] = (node.choices ?? []).map((choice) => ({
         choice,
@@ -457,6 +494,8 @@ export class NarrativeRunner {
         choices,
         actionLogs: logs,
         triggeredBattleEnemyId: battleEnemyId,
+        activeCinematic: null,
+        backgroundCinematic: this.backgroundCinematic,
       };
       return this.currentStep;
     }
@@ -469,6 +508,8 @@ export class NarrativeRunner {
       choices: [],
       actionLogs: logs,
       triggeredBattleEnemyId: battleEnemyId,
+      activeCinematic: null,
+      backgroundCinematic: null,
     };
     return this.currentStep;
   }

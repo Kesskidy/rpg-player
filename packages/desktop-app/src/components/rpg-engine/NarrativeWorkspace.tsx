@@ -213,6 +213,7 @@ export function NarrativeWorkspace({
       <NarrativeGraphEditor
         graph={activeGraph}
         database={database}
+        availableAssets={project?.assets}
         onChange={onChangeNarrative}
       />
 
@@ -220,6 +221,8 @@ export function NarrativeWorkspace({
       {testRunner && testStep && (
         <DialogueOverlay
           step={testStep}
+          storage={storage}
+          project={project}
           onSelectChoice={(choiceId) => {
             const next = testRunner.selectChoice(choiceId);
             if (next.status === 'ended') {
