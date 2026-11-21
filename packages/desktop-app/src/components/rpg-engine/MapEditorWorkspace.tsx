@@ -33,6 +33,7 @@ import { CombatOverlay } from './CombatOverlay';
 import { DialogueOverlay } from './DialogueOverlay';
 import { InventoryModal } from './InventoryModal';
 import { TileAssetPicker } from './TileAssetPicker';
+import { PixelPlayIcon, PixelSaveIcon } from '../ui/PixelIcons';
 
 interface MapEditorWorkspaceProps {
   storage: ProjectStorageAdapter;
@@ -894,7 +895,7 @@ export function MapEditorWorkspace({
                 viewportRef.current?.centerCameraOnMap();
                 setZoomDisplay(viewportRef.current?.getCamera().zoom ?? 2);
               }}
-              className="rounded bg-surface-800 px-2.5 py-1 text-xs text-slate-200 hover:bg-surface-700"
+              className="pixel-btn px-2.5 py-1 text-[11px]"
             >
               Centrer ({zoomDisplay}×)
             </button>
@@ -903,15 +904,16 @@ export function MapEditorWorkspace({
               <button
                 type="button"
                 onClick={() => handleSetMode('preview')}
-                className="rounded-md bg-emerald-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow transition hover:bg-emerald-500"
+                className="pixel-btn pixel-btn-dragon flex items-center gap-1.5 px-3.5 py-1.5 text-[11px] font-bold"
               >
-                ▶ Play Preview
+                <PixelPlayIcon size={13} />
+                <span>Play Preview</span>
               </button>
             ) : (
               <button
                 type="button"
                 onClick={() => handleSetMode('editor')}
-                className="rounded-md bg-rose-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow transition hover:bg-rose-500"
+                className="pixel-btn pixel-btn-gold px-3.5 py-1.5 text-[11px] font-bold"
               >
                 ■ Stop Preview
               </button>
@@ -1362,9 +1364,10 @@ export function MapEditorWorkspace({
             type="button"
             disabled={isSaving}
             onClick={() => void handleSaveMap()}
-            className="w-full rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500 disabled:opacity-50"
+            className="pixel-btn pixel-btn-emerald flex w-full items-center justify-center gap-1.5 px-3 py-1.5 text-[11px] font-bold disabled:opacity-50"
           >
-            {isSaving ? 'Sauvegarde...' : 'Sauvegarder la Map (.map.json)'}
+            <PixelSaveIcon size={14} />
+            <span>{isSaving ? 'Sauvegarde...' : 'Sauvegarder la Map'}</span>
           </button>
           {feedback && (
             <p

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { MapMeta, ProjectManifest } from '@rpg-player/core-types';
+import { PixelCrownIcon, PixelDiceIcon, PixelPlayIcon } from '../ui/PixelIcons';
 
 export interface CreateRoomForm {
   serverUrl: string;
@@ -83,9 +84,10 @@ export function VttLobby({
           <button
             type="button"
             onClick={() => onStartLocalDemo(gmName, playerName, selectedMapId || null)}
-            className="shrink-0 rounded-md bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow transition hover:bg-emerald-500"
+            className="pixel-btn pixel-btn-dragon flex shrink-0 items-center gap-2 px-4 py-2 text-xs font-bold"
           >
-            ▶ Lancer Démo MJ / Joueur
+            <PixelPlayIcon size={14} />
+            <span>Lancer Démo MJ / Joueur</span>
           </button>
         </div>
 
@@ -119,11 +121,14 @@ export function VttLobby({
                 selectedMapId: selectedMapId || null,
               });
             }}
-            className="space-y-3 rounded-xl border border-amber-500/35 bg-surface-900 p-5 shadow-lg"
+            className="pixel-panel space-y-3 border-dnd-gold p-5"
           >
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-amber-200">Créer un Salon (MJ / Admin)</h3>
-              <span className="rounded bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-300">
+            <div className="flex items-center justify-between border-b-2 border-dnd-border pb-2">
+              <h3 className="flex items-center gap-2 font-pixel text-xs font-bold text-dnd-gold">
+                <PixelCrownIcon size={16} />
+                <span>Créer un Salon (MJ)</span>
+              </h3>
+              <span className="pixel-badge-gm px-2 py-0.5 text-[10px] font-bold uppercase">
                 MJ
               </span>
             </div>
@@ -181,7 +186,7 @@ export function VttLobby({
             <button
               type="submit"
               disabled={connecting}
-              className="w-full rounded-md bg-amber-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-amber-500 disabled:opacity-50"
+              className="pixel-btn pixel-btn-gold w-full px-4 py-2 text-xs font-bold disabled:opacity-50"
             >
               {connecting ? 'Connexion...' : 'Ouvrir le Salon (WebSocket)'}
             </button>
@@ -198,11 +203,14 @@ export function VttLobby({
                 playerName,
               });
             }}
-            className="space-y-3 rounded-xl border border-cyan-500/35 bg-surface-900 p-5 shadow-lg"
+            className="pixel-panel space-y-3 border-dnd-arcane p-5"
           >
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-cyan-200">Rejoindre un Salon (Joueur)</h3>
-              <span className="rounded bg-cyan-500/20 px-2 py-0.5 text-[10px] font-bold uppercase text-cyan-300">
+            <div className="flex items-center justify-between border-b-2 border-dnd-border pb-2">
+              <h3 className="flex items-center gap-2 font-pixel text-xs font-bold text-dnd-parchment">
+                <PixelDiceIcon size={16} />
+                <span>Rejoindre (Joueur)</span>
+              </h3>
+              <span className="border-2 border-dnd-arcane bg-indigo-950/70 px-2 py-0.5 font-pixel text-[10px] font-bold uppercase text-dnd-parchment">
                 Joueur
               </span>
             </div>
@@ -251,7 +259,7 @@ export function VttLobby({
             <button
               type="submit"
               disabled={connecting}
-              className="w-full rounded-md bg-cyan-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-cyan-500 disabled:opacity-50"
+              className="pixel-btn pixel-btn-arcane w-full px-4 py-2 text-xs font-bold disabled:opacity-50"
             >
               {connecting ? 'Connexion...' : 'Rejoindre la table'}
             </button>

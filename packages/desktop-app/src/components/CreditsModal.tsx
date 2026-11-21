@@ -1,3 +1,5 @@
+import { PixelCrownIcon } from './ui/PixelIcons';
+
 interface CreditsModalProps {
   open: boolean;
   onClose: () => void;
@@ -8,58 +10,69 @@ export function CreditsModal({ open, onClose }: CreditsModalProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-xl border border-slate-700 bg-surface-900 p-6 shadow-2xl"
+        className="pixel-panel w-full max-w-md border-dnd-gold p-6"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="flex items-start justify-between">
-          <div>
-            <h2 className="text-base font-bold text-white">Crédits — RPG Player Studio</h2>
-            <p className="mt-0.5 text-xs text-slate-400">
-              Suite créative tout-en-un · Pixel Studio · RPG Engine · VTT
-            </p>
+        <div className="flex items-start justify-between border-b-2 border-dnd-border pb-3">
+          <div className="flex items-center gap-2.5">
+            <PixelCrownIcon size={22} />
+            <div>
+              <h2 className="font-pixel text-sm font-bold text-dnd-gold">
+                Crédits — RPG Player Studio
+              </h2>
+              <p className="mt-0.5 text-[11px] text-dnd-muted">
+                Atelier Dark Fantasy 16-bit · Pixel · RPG · VTT
+              </p>
+            </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded px-2 py-1 text-xs text-slate-400 hover:bg-surface-800 hover:text-white"
+            className="pixel-btn px-2 py-0.5 text-xs text-dnd-parchment"
           >
             ✕
           </button>
         </div>
 
-        <div className="mt-5 rounded-lg border border-indigo-500/40 bg-indigo-950/40 p-4 text-center">
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-indigo-300">
+        <div className="mt-4 border-2 border-dnd-gold bg-dnd-surface p-4 text-center shadow-pixel-sm">
+          <p className="font-pixel text-[10px] uppercase tracking-widest text-dnd-muted">
             Architecture &amp; Développement
           </p>
-          <p className="mt-1.5 bg-gradient-to-r from-indigo-300 via-cyan-200 to-emerald-300 bg-clip-text text-xl font-extrabold tracking-tight text-transparent">
+          <p className="mt-2 font-pixel text-lg font-bold tracking-tight text-dnd-gold">
             Made by Gemini Neon
           </p>
         </div>
 
-        <dl className="mt-4 space-y-2 rounded-lg border border-slate-800 bg-surface-950/60 p-3.5 text-xs">
-          <div className="flex justify-between">
-            <dt className="text-slate-400">Module 1</dt>
-            <dd className="text-slate-200">Pixel Studio &amp; Image → Pixel Art</dd>
+        <dl className="mt-4 space-y-2 border-2 border-dnd-border bg-dnd-obsidian p-3.5 text-xs">
+          <div className="flex justify-between gap-2">
+            <dt className="font-pixel text-[10px] text-dnd-gold">Module 1</dt>
+            <dd className="text-right text-dnd-parchment">Pixel Studio &amp; Image → Pixel Art</dd>
           </div>
-          <div className="flex justify-between">
-            <dt className="text-slate-400">Module 2</dt>
-            <dd className="text-slate-200">Animation Studio (Timeline · Onion Skin · Markers)</dd>
+          <div className="flex justify-between gap-2">
+            <dt className="font-pixel text-[10px] text-dnd-gold">Module 2</dt>
+            <dd className="text-right text-dnd-parchment">
+              Animation Studio (Onion Skin · Markers · GIF)
+            </dd>
           </div>
-          <div className="flex justify-between">
-            <dt className="text-slate-400">Module 3</dt>
-            <dd className="text-slate-200">RPG Engine (PixiJS · Twine · Fiches · Combat 3 Modes)</dd>
+          <div className="flex justify-between gap-2">
+            <dt className="font-pixel text-[10px] text-dnd-gold">Module 3</dt>
+            <dd className="text-right text-dnd-parchment">
+              RPG Engine (PixiJS · Twine · Fiches · Combat)
+            </dd>
           </div>
-          <div className="flex justify-between">
-            <dt className="text-slate-400">Module 4</dt>
-            <dd className="text-slate-200">VTT / Mode JDR (WebSocket · MJ Admin · Fog)</dd>
+          <div className="flex justify-between gap-2">
+            <dt className="font-pixel text-[10px] text-dnd-gold">Module 4</dt>
+            <dd className="text-right text-dnd-parchment">
+              VTT / Mode JDR (WebSocket · MJ · Fog)
+            </dd>
           </div>
-          <div className="flex justify-between">
-            <dt className="text-slate-400">Shell</dt>
-            <dd className="text-slate-200">Electron · React · TypeScript · Tailwind CSS</dd>
+          <div className="flex justify-between gap-2">
+            <dt className="font-pixel text-[10px] text-dnd-muted">Polices</dt>
+            <dd className="text-right text-dnd-muted">Silkscreen · JetBrains Mono (Local OFL)</dd>
           </div>
         </dl>
 
@@ -67,7 +80,7 @@ export function CreditsModal({ open, onClose }: CreditsModalProps) {
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md bg-indigo-600 px-4 py-1.5 text-xs font-medium text-white transition hover:bg-indigo-500"
+            className="pixel-btn pixel-btn-dragon px-4 py-1.5 text-xs font-bold"
           >
             Fermer
           </button>

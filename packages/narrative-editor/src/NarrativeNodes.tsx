@@ -15,8 +15,8 @@ function DialogueNodeCard({ data, selected }: NodeProps<NarrativeFlowNode>) {
 
   return (
     <div
-      className={`w-60 rounded-lg border bg-[#121620] text-slate-100 shadow-lg ${
-        selected ? 'border-indigo-400 ring-2 ring-indigo-500/40' : 'border-slate-700'
+      className={`w-60 border-2 bg-[#1E1A24] text-[#EFE6D5] shadow-[0px_4px_0px_#0B090E] ${
+        selected ? 'border-[#DFA842]' : 'border-[#3E354A]'
       }`}
     >
       <Handle type="target" position={Position.Left} className="!h-2.5 !w-2.5 !bg-indigo-400" />
@@ -64,8 +64,8 @@ function ConditionNodeCard({ data, selected }: NodeProps<NarrativeFlowNode>) {
   const node = data.narrativeNode;
   return (
     <div
-      className={`w-56 rounded-lg border bg-[#121620] text-slate-100 shadow-lg ${
-        selected ? 'border-emerald-400 ring-2 ring-emerald-500/40' : 'border-slate-700'
+      className={`w-56 border-2 bg-[#1E1A24] text-[#EFE6D5] shadow-[0px_4px_0px_#0B090E] ${
+        selected ? 'border-[#DFA842]' : 'border-[#3E354A]'
       }`}
     >
       <Handle type="target" position={Position.Left} className="!h-2.5 !w-2.5 !bg-emerald-400" />
@@ -109,8 +109,8 @@ function ActionNodeCard({ data, selected }: NodeProps<NarrativeFlowNode>) {
   const effects = node.effects ?? [];
   return (
     <div
-      className={`w-56 rounded-lg border bg-[#121620] text-slate-100 shadow-lg ${
-        selected ? 'border-amber-400 ring-2 ring-amber-500/40' : 'border-slate-700'
+      className={`w-56 border-2 bg-[#1E1A24] text-[#EFE6D5] shadow-[0px_4px_0px_#0B090E] ${
+        selected ? 'border-[#DFA842]' : 'border-[#3E354A]'
       }`}
     >
       <Handle type="target" position={Position.Left} className="!h-2.5 !w-2.5 !bg-amber-400" />
@@ -151,8 +151,8 @@ function CinematicNodeCard({ data, selected }: NodeProps<NarrativeFlowNode>) {
   const cin = node.cinematic;
   return (
     <div
-      className={`w-60 rounded-lg border bg-[#121620] text-slate-100 shadow-lg ${
-        selected ? 'border-purple-400 ring-2 ring-purple-500/40' : 'border-slate-700'
+      className={`w-60 border-2 bg-[#1E1A24] text-[#EFE6D5] shadow-[0px_4px_0px_#0B090E] ${
+        selected ? 'border-[#DFA842]' : 'border-[#3E354A]'
       }`}
     >
       <Handle type="target" position={Position.Left} className="!h-2.5 !w-2.5 !bg-purple-400" />
@@ -191,8 +191,8 @@ function CinematicNodeCard({ data, selected }: NodeProps<NarrativeFlowNode>) {
 function EndNodeCard({ data, selected }: NodeProps<NarrativeFlowNode>) {
   return (
     <div
-      className={`w-36 rounded-lg border bg-[#121620] text-slate-100 shadow-lg ${
-        selected ? 'border-rose-400 ring-2 ring-rose-500/40' : 'border-slate-700'
+      className={`w-36 border-2 bg-[#1E1A24] text-[#EFE6D5] shadow-[0px_4px_0px_#0B090E] ${
+        selected ? 'border-[#C83232]' : 'border-[#3E354A]'
       }`}
     >
       <Handle type="target" position={Position.Left} className="!h-2.5 !w-2.5 !bg-rose-400" />

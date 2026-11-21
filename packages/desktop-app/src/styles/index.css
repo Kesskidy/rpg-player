@@ -2,6 +2,277 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  /* Fonds — Pierre de donjon / Obsidienne */
+  --dnd-bg-main: #141218;
+  --dnd-bg-panel: #1e1a24;
+  --dnd-bg-surface: #2a2433;
+  --dnd-bg-elevated: #342d40;
+  --dnd-shadow-deep: #0b090e;
+
+  /* Textes — Parchemin */
+  --dnd-text-primary: #efe6d5;
+  --dnd-text-secondary: #a69b8d;
+
+  /* Accents D&D */
+  --dnd-dragon: #c83232;
+  --dnd-dragon-hover: #e04343;
+  --dnd-dragon-dark: #7a1a1a;
+  --dnd-gold: #dfa842;
+  --dnd-gold-hover: #f0bd59;
+  --dnd-gold-dark: #8a6118;
+  --dnd-emerald: #3d9956;
+  --dnd-emerald-hover: #4cb368;
+  --dnd-emerald-dark: #215e33;
+  --dnd-arcane: #3c78b5;
+  --dnd-arcane-hover: #4e8fd1;
+  --dnd-arcane-dark: #204872;
+
+  /* Bordures — Pierre sombre & Relief */
+  --dnd-border-dark: #3e354a;
+  --dnd-border-light: #574b66;
+
+  /* Typographie locale hors-ligne */
+  --font-pixel-display: 'Silkscreen', monospace;
+  --font-pixel-body: 'JetBrains Mono', monospace;
+}
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    border-radius: 0px !important;
+  }
+
+  html,
+  body {
+    background-color: var(--dnd-bg-main);
+    color: var(--dnd-text-primary);
+    font-family: var(--font-pixel-body);
+    -webkit-font-smoothing: none;
+    font-smooth: never;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-pixel-display);
+    letter-spacing: 0.02em;
+  }
+
+  canvas,
+  img,
+  svg.pixel-icon {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+  }
+
+  /* Inputs & Selects gravés dans la pierre par défaut */
+  input[type='text'],
+  input[type='number'],
+  input[type='password'],
+  select,
+  textarea {
+    background-color: var(--dnd-bg-surface);
+    border-width: 2px;
+    border-color: var(--dnd-border-dark);
+    color: var(--dnd-text-primary);
+    box-shadow: inset 0px 2px 0px var(--dnd-shadow-deep);
+  }
+
+  input[type='text']:focus,
+  input[type='number']:focus,
+  input[type='password']:focus,
+  select:focus,
+  textarea:focus {
+    outline: none;
+    border-color: var(--dnd-gold);
+  }
+
+  /* Scrollbars carrées Pierre & Or Antique */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--dnd-border-dark) var(--dnd-bg-panel);
+  }
+
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: var(--dnd-bg-panel);
+    border-left: 2px solid var(--dnd-border-dark);
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background: var(--dnd-border-dark);
+    border: 2px solid var(--dnd-border-light);
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background: var(--dnd-gold);
+    border-color: var(--dnd-text-primary);
+  }
+
+  *::-webkit-scrollbar-corner {
+    background: var(--dnd-bg-main);
+  }
+}
+
+@layer components {
+  /* Fenêtre / Panneau gravé dans la pierre */
+  .pixel-panel {
+    background-color: var(--dnd-bg-panel);
+    border: 2px solid var(--dnd-border-dark);
+    box-shadow:
+      inset 2px 2px 0px var(--dnd-border-light),
+      inset -2px -2px 0px var(--dnd-shadow-deep),
+      0px 4px 0px var(--dnd-shadow-deep);
+  }
+
+  .pixel-card {
+    background-color: var(--dnd-bg-surface);
+    border: 2px solid var(--dnd-border-dark);
+    box-shadow:
+      inset 2px 2px 0px var(--dnd-border-light),
+      0px 4px 0px var(--dnd-shadow-deep);
+  }
+
+  /* Bouton 16-bit biseauté pressable (style SNES / Aseprite) */
+  .pixel-btn {
+    font-family: var(--font-pixel-display);
+    border: 2px solid var(--dnd-border-dark);
+    background-color: var(--dnd-bg-surface);
+    color: var(--dnd-text-primary);
+    box-shadow:
+      inset 2px 2px 0px var(--dnd-border-light),
+      inset -2px -2px 0px var(--dnd-shadow-deep),
+      0px 4px 0px var(--dnd-shadow-deep);
+    transition:
+      transform 50ms steps(2),
+      box-shadow 50ms steps(2),
+      background-color 80ms linear,
+      border-color 80ms linear;
+  }
+
+  .pixel-btn:hover:not(:disabled) {
+    background-color: var(--dnd-bg-elevated);
+    border-color: var(--dnd-gold);
+  }
+
+  .pixel-btn:active:not(:disabled) {
+    transform: translateY(2px);
+    box-shadow:
+      inset 2px 2px 0px var(--dnd-shadow-deep),
+      0px 2px 0px var(--dnd-shadow-deep);
+  }
+
+  .pixel-btn-dragon {
+    background-color: var(--dnd-dragon);
+    border-color: var(--dnd-dragon-dark);
+    color: var(--dnd-text-primary);
+    box-shadow:
+      inset 2px 2px 0px #f07575,
+      inset -2px -2px 0px var(--dnd-dragon-dark),
+      0px 4px 0px var(--dnd-shadow-deep);
+  }
+
+  .pixel-btn-dragon:hover:not(:disabled) {
+    background-color: var(--dnd-dragon-hover);
+    border-color: var(--dnd-gold);
+  }
+
+  .pixel-btn-gold {
+    background-color: var(--dnd-gold);
+    border-color: var(--dnd-gold-dark);
+    color: #141218;
+    box-shadow:
+      inset 2px 2px 0px #fae09e,
+      inset -2px -2px 0px var(--dnd-gold-dark),
+      0px 4px 0px var(--dnd-shadow-deep);
+  }
+
+  .pixel-btn-gold:hover:not(:disabled) {
+    background-color: var(--dnd-gold-hover);
+    border-color: var(--dnd-text-primary);
+  }
+
+  .pixel-btn-emerald {
+    background-color: var(--dnd-emerald);
+    border-color: var(--dnd-emerald-dark);
+    color: var(--dnd-text-primary);
+    box-shadow:
+      inset 2px 2px 0px #7ad693,
+      inset -2px -2px 0px var(--dnd-emerald-dark),
+      0px 4px 0px var(--dnd-shadow-deep);
+  }
+
+  .pixel-btn-emerald:hover:not(:disabled) {
+    background-color: var(--dnd-emerald-hover);
+    border-color: var(--dnd-gold);
+  }
+
+  .pixel-btn-arcane {
+    background-color: var(--dnd-arcane);
+    border-color: var(--dnd-arcane-dark);
+    color: var(--dnd-text-primary);
+    box-shadow:
+      inset 2px 2px 0px #7eb4eb,
+      inset -2px -2px 0px var(--dnd-arcane-dark),
+      0px 4px 0px var(--dnd-shadow-deep);
+  }
+
+  .pixel-btn-arcane:hover:not(:disabled) {
+    background-color: var(--dnd-arcane-hover);
+    border-color: var(--dnd-gold);
+  }
+
+  /* Onglet de grimoire / plaque de métal avec liseré Or Antique actif */
+  .pixel-tab {
+    font-family: var(--font-pixel-display);
+    background-color: var(--dnd-bg-surface);
+    border: 2px solid var(--dnd-border-dark);
+    color: var(--dnd-text-secondary);
+    box-shadow:
+      inset 2px 2px 0px var(--dnd-border-light),
+      0px 3px 0px var(--dnd-shadow-deep);
+    transition:
+      transform 50ms steps(2),
+      color 80ms linear,
+      border-color 80ms linear;
+  }
+
+  .pixel-tab:hover {
+    color: var(--dnd-text-primary);
+    border-color: var(--dnd-border-light);
+    background-color: var(--dnd-bg-elevated);
+  }
+
+  .pixel-tab-active {
+    background-color: var(--dnd-bg-elevated);
+    border-color: var(--dnd-gold);
+    border-top-width: 3px;
+    color: var(--dnd-gold);
+    box-shadow:
+      inset 0px 2px 0px rgba(223, 168, 66, 0.35),
+      inset -2px -2px 0px var(--dnd-shadow-deep),
+      0px 3px 0px var(--dnd-shadow-deep);
+  }
+
+  /* Écusson / Badge Maître du Jeu */
+  .pixel-badge-gm {
+    font-family: var(--font-pixel-display);
+    background-color: #3a1418;
+    border: 2px solid var(--dnd-gold);
+    color: var(--dnd-gold);
+    box-shadow:
+      inset 0px 2px 0px rgba(223, 168, 66, 0.25),
+      0px 2px 0px var(--dnd-shadow-deep);
+  }
+}
+
 @layer utilities {
   .pixelated {
     image-rendering: pixelated;
@@ -9,12 +280,12 @@
   }
 
   .pixel-checkerboard {
-    background-color: #1e2433;
+    background-color: #1e1a24;
     background-image:
-      linear-gradient(45deg, #2a3245 25%, transparent 25%),
-      linear-gradient(-45deg, #2a3245 25%, transparent 25%),
-      linear-gradient(45deg, transparent 75%, #2a3245 75%),
-      linear-gradient(-45deg, transparent 75%, #2a3245 75%);
+      linear-gradient(45deg, #2a2433 25%, transparent 25%),
+      linear-gradient(-45deg, #2a2433 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #2a2433 75%),
+      linear-gradient(-45deg, transparent 75%, #2a2433 75%);
     background-size: 16px 16px;
     background-position:
       0 0,
@@ -22,4 +293,27 @@
       8px -8px,
       -8px 0;
   }
+}
+
+/* React Flow Dark Fantasy Pixel Overrides */
+.react-flow__controls {
+  border: 2px solid var(--dnd-border-dark) !important;
+  box-shadow: 0px 4px 0px var(--dnd-shadow-deep) !important;
+  background-color: var(--dnd-bg-panel) !important;
+}
+
+.react-flow__controls-button {
+  background-color: var(--dnd-bg-surface) !important;
+  border-bottom: 2px solid var(--dnd-border-dark) !important;
+  fill: var(--dnd-text-primary) !important;
+}
+
+.react-flow__controls-button:hover {
+  background-color: var(--dnd-bg-elevated) !important;
+  fill: var(--dnd-gold) !important;
+}
+
+.react-flow__minimap {
+  border: 2px solid var(--dnd-border-dark) !important;
+  box-shadow: 0px 4px 0px var(--dnd-shadow-deep) !important;
 }

@@ -19,6 +19,7 @@ import { LayersPanel } from '../pixel-studio/LayersPanel';
 import { PalettePanel } from '../pixel-studio/PalettePanel';
 import { PixelCanvas } from '../pixel-studio/PixelCanvas';
 import { ToolbarPanel } from '../pixel-studio/ToolbarPanel';
+import { PixelDownloadIcon, PixelSaveIcon } from '../ui/PixelIcons';
 import { AnimationTimeline } from './AnimationTimeline';
 
 interface AnimationStudioWorkspaceProps {
@@ -606,17 +607,19 @@ export function AnimationStudioWorkspace({
             type="button"
             disabled={isSaving}
             onClick={() => void handleExportToProject()}
-            className="w-full rounded-md bg-indigo-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-50"
+            className="pixel-btn pixel-btn-emerald flex w-full items-center justify-center gap-1.5 px-3 py-2 text-[11px] font-bold disabled:opacity-50"
           >
-            {isSaving ? 'Export en cours...' : 'Exporter Spritesheet + AnimationClip'}
+            <PixelSaveIcon size={14} />
+            <span>{isSaving ? 'Export...' : 'Exporter Spritesheet + Clip'}</span>
           </button>
 
           <button
             type="button"
             onClick={handleDownloadBundle}
-            className="w-full rounded-md border border-slate-700 bg-surface-800 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-surface-700"
+            className="pixel-btn flex w-full items-center justify-center gap-1.5 px-3 py-1.5 text-[11px]"
           >
-            Télécharger PNG + JSON
+            <PixelDownloadIcon size={14} />
+            <span>Télécharger PNG + JSON</span>
           </button>
 
           <div className="flex gap-1.5">
@@ -624,7 +627,7 @@ export function AnimationStudioWorkspace({
               value={gifScale}
               onChange={(e) => setGifScale(Number(e.target.value))}
               title="Facteur d’échelle du GIF (pixel-perfect)"
-              className="rounded-md border border-emerald-500/40 bg-surface-800 px-2 py-1.5 font-mono text-xs text-emerald-200"
+              className="border-2 border-dnd-gold bg-dnd-surface px-2 py-1.5 font-mono text-xs text-dnd-gold"
             >
               <option value={1}>×1</option>
               <option value={2}>×2</option>
@@ -634,9 +637,10 @@ export function AnimationStudioWorkspace({
             <button
               type="button"
               onClick={handleDownloadGif}
-              className="flex-1 rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-500"
+              className="pixel-btn pixel-btn-gold flex flex-1 items-center justify-center gap-1.5 px-3 py-1.5 text-[11px] font-bold"
             >
-              Télécharger en GIF
+              <PixelDownloadIcon size={14} />
+              <span>Télécharger GIF</span>
             </button>
           </div>
 

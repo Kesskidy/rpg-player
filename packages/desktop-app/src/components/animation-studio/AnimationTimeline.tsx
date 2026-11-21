@@ -5,6 +5,7 @@ import type {
   PixelStudioEngine,
   TimelinePlaybackSpeed,
 } from '@rpg-player/pixel-studio';
+import { PixelPauseIcon, PixelPlayIcon } from '../ui/PixelIcons';
 
 interface AnimationTimelineProps {
   engine: PixelStudioEngine;
@@ -141,13 +142,12 @@ export function AnimationTimeline({
           <button
             type="button"
             onClick={onTogglePlay}
-            className={`rounded px-2.5 py-1 font-semibold text-white transition ${
-              isPlaying
-                ? 'bg-amber-600 hover:bg-amber-500'
-                : 'bg-emerald-600 hover:bg-emerald-500'
+            className={`pixel-btn flex items-center gap-1.5 px-2.5 py-1 font-bold ${
+              isPlaying ? 'pixel-btn-gold' : 'pixel-btn-dragon'
             }`}
           >
-            {isPlaying ? '⏸ Pause' : '▶ Lire'}
+            {isPlaying ? <PixelPauseIcon size={12} /> : <PixelPlayIcon size={12} />}
+            <span>{isPlaying ? 'Pause' : 'Lire'}</span>
           </button>
 
           <div className="flex items-center rounded border border-slate-700 bg-surface-800 p-0.5">

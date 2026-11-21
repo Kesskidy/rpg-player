@@ -10,6 +10,7 @@ import {
   createSampleNarrativeGraph,
 } from '@rpg-player/rpg-engine';
 import { loadNarrative, loadRpgDatabase } from '../../storage/project-service';
+import { PixelBookIcon, PixelFilmIcon, PixelSwordIcon } from '../ui/PixelIcons';
 import { DatabaseWorkspace } from './DatabaseWorkspace';
 import { MapEditorWorkspace } from './MapEditorWorkspace';
 import { NarrativeWorkspace } from './NarrativeWorkspace';
@@ -80,45 +81,42 @@ export function RpgEngineHub({
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
-      {/* Sub-navigation bar for Module 2 */}
-      <div className="flex items-center justify-between border-b border-slate-800 bg-surface-900/70 px-4 py-1.5">
-        <div className="flex items-center gap-1">
+      {/* Sub-navigation bar for Module 3 */}
+      <div className="flex items-center justify-between border-b-2 border-dnd-border bg-dnd-stone px-4 py-1.5">
+        <div className="flex items-center gap-1.5">
           <button
             type="button"
             onClick={() => setSubTab('map')}
-            className={`rounded px-3 py-1 text-xs font-medium transition ${
-              subTab === 'map'
-                ? 'bg-indigo-600/30 text-indigo-100 ring-1 ring-indigo-500/60'
-                : 'text-slate-400 hover:bg-surface-800 hover:text-slate-200'
+            className={`pixel-tab flex items-center gap-1.5 px-3 py-1 text-[11px] font-bold ${
+              subTab === 'map' ? 'pixel-tab-active' : ''
             }`}
           >
-            Carte, PNJ &amp; Play Preview
+            <PixelSwordIcon size={13} />
+            <span>Carte, PNJ &amp; Play</span>
           </button>
           <button
             type="button"
             onClick={() => setSubTab('narrative')}
-            className={`rounded px-3 py-1 text-xs font-medium transition ${
-              subTab === 'narrative'
-                ? 'bg-indigo-600/30 text-indigo-100 ring-1 ring-indigo-500/60'
-                : 'text-slate-400 hover:bg-surface-800 hover:text-slate-200'
+            className={`pixel-tab flex items-center gap-1.5 px-3 py-1 text-[11px] font-bold ${
+              subTab === 'narrative' ? 'pixel-tab-active' : ''
             }`}
           >
-            Narration Nodale (Twine)
+            <PixelFilmIcon size={13} />
+            <span>Narration &amp; Cinématiques</span>
           </button>
           <button
             type="button"
             onClick={() => setSubTab('database')}
-            className={`rounded px-3 py-1 text-xs font-medium transition ${
-              subTab === 'database'
-                ? 'bg-indigo-600/30 text-indigo-100 ring-1 ring-indigo-500/60'
-                : 'text-slate-400 hover:bg-surface-800 hover:text-slate-200'
+            className={`pixel-tab flex items-center gap-1.5 px-3 py-1 text-[11px] font-bold ${
+              subTab === 'database' ? 'pixel-tab-active' : ''
             }`}
           >
-            Base de Données, Fiches &amp; Combat
+            <PixelBookIcon size={13} />
+            <span>BDD, Fiches &amp; Combat</span>
           </button>
         </div>
 
-        <span className="text-[11px] text-slate-500">
+        <span className="text-[11px] text-dnd-muted">
           Cinématiques, Fiches Personnages &amp; Combat 3 Modes (Simple · Animé · Dynamique IA)
         </span>
       </div>

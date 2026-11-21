@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { VttChatMessage } from '@rpg-player/core-types';
+import { PixelCrownIcon, PixelDiceIcon } from '../ui/PixelIcons';
 
 interface VttChatDicePanelProps {
   messages: readonly VttChatMessage[];
@@ -45,8 +46,9 @@ export function VttChatDicePanel({
       {/* Dice Roller Tray */}
       <div className="space-y-2 border-b border-slate-800 bg-surface-950/50 p-2.5">
         <div className="flex items-center justify-between">
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-            Lanceur de dés
+          <span className="flex items-center gap-1.5 font-pixel text-[10px] font-bold uppercase tracking-wider text-dnd-gold">
+            <PixelDiceIcon size={14} />
+            <span>Lanceur de dés</span>
           </span>
         </div>
         <div className="grid grid-cols-7 gap-1">
@@ -55,7 +57,7 @@ export function VttChatDicePanel({
               key={die}
               type="button"
               onClick={() => onRollDice(die)}
-              className="rounded bg-indigo-600/25 py-1 font-mono text-[10px] font-bold text-indigo-200 ring-1 ring-indigo-500/40 hover:bg-indigo-600/50"
+              className="pixel-btn py-1 font-mono text-[10px] font-bold text-dnd-gold"
             >
               {die.replace('1', '')}
             </button>
@@ -107,8 +109,11 @@ export function VttChatDicePanel({
                 className="rounded-lg border border-emerald-500/35 bg-emerald-950/30 p-2"
               >
                 <div className="flex items-center justify-between text-[10px] text-emerald-300">
-                  <span className="font-semibold">🎲 {msg.senderName}</span>
-                  <span className="font-mono">{msg.roll.formula}</span>
+                  <span className="flex items-center gap-1 font-bold">
+                    <PixelDiceIcon size={12} />
+                    <span>{msg.senderName}</span>
+                  </span>
+                  <span className="font-mono text-dnd-gold">{msg.roll.formula}</span>
                 </div>
                 <div className="mt-1 flex items-baseline justify-between gap-2">
                   <span className="truncate font-mono text-[11px] text-slate-300">
@@ -141,10 +146,11 @@ export function VttChatDicePanel({
                 >
                   {msg.channel}
                 </span>
-                <span className="font-semibold text-slate-200">{msg.senderName}</span>
+                <span className="font-semibold text-dnd-parchment">{msg.senderName}</span>
                 {msg.senderRole === 'gm' && (
-                  <span className="rounded bg-amber-600/30 px-1 text-[9px] text-amber-200">
-                    MJ
+                  <span className="pixel-badge-gm inline-flex items-center gap-1 px-1.5 py-0 text-[9px]">
+                    <PixelCrownIcon size={10} />
+                    <span>MJ</span>
                   </span>
                 )}
               </div>

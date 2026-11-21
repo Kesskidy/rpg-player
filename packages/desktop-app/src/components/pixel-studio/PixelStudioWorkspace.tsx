@@ -13,6 +13,7 @@ import { LayersPanel } from './LayersPanel';
 import { PalettePanel } from './PalettePanel';
 import { PixelCanvas } from './PixelCanvas';
 import { ToolbarPanel } from './ToolbarPanel';
+import { PixelDownloadIcon, PixelSaveIcon, PixelSparkIcon } from '../ui/PixelIcons';
 
 interface PixelStudioWorkspaceProps {
   storage: ProjectStorageAdapter;
@@ -301,13 +302,14 @@ export function PixelStudioWorkspace({
     <div className="flex flex-1 overflow-hidden">
       {/* Left Dock: Tools, Palette & Project Assets */}
       <aside className="flex w-64 flex-col border-r border-slate-800 bg-surface-900">
-        <div className="border-b border-slate-800 p-2.5">
+        <div className="border-b-2 border-dnd-border p-2.5">
           <button
             type="button"
             onClick={() => setConverterOpen(true)}
-            className="w-full rounded-md bg-gradient-to-r from-indigo-600 to-cyan-600 px-3 py-2 text-xs font-semibold text-white shadow transition hover:from-indigo-500 hover:to-cyan-500"
+            className="pixel-btn pixel-btn-arcane flex w-full items-center justify-center gap-1.5 px-3 py-2 text-[11px] font-bold"
           >
-            Importer Image → Pixel Art
+            <PixelSparkIcon size={14} />
+            <span>Image → Pixel Art</span>
           </button>
         </div>
         <ToolbarPanel
@@ -415,25 +417,28 @@ export function PixelStudioWorkspace({
             type="button"
             disabled={isSaving}
             onClick={() => void handleSaveToProject()}
-            className="w-full rounded-md bg-indigo-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-50"
+            className="pixel-btn pixel-btn-emerald flex w-full items-center justify-center gap-1.5 px-3 py-2 text-[11px] font-bold disabled:opacity-50"
           >
-            {isSaving ? 'Sauvegarde...' : 'Sauvegarder & Exporter (PNG + AssetMeta)'}
+            <PixelSaveIcon size={14} />
+            <span>{isSaving ? 'Sauvegarde...' : 'Sauvegarder (PNG + Meta)'}</span>
           </button>
 
           <div className="grid grid-cols-2 gap-1.5">
             <button
               type="button"
               onClick={handleDownloadFiles}
-              className="rounded-md border border-slate-700 bg-surface-800 px-2.5 py-1.5 text-xs font-medium text-slate-200 transition hover:bg-surface-700"
+              className="pixel-btn flex items-center justify-center gap-1 px-2 py-1.5 text-[10px]"
             >
-              PNG + JSON
+              <PixelDownloadIcon size={13} />
+              <span>PNG + JSON</span>
             </button>
             <button
               type="button"
               onClick={handleDownloadGif}
-              className="rounded-md bg-emerald-600 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-500"
+              className="pixel-btn pixel-btn-gold flex items-center justify-center gap-1 px-2 py-1.5 text-[10px] font-bold"
             >
-              Télécharger GIF
+              <PixelDownloadIcon size={13} />
+              <span>GIF</span>
             </button>
           </div>
 

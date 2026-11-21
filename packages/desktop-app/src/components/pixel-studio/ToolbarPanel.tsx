@@ -1,4 +1,11 @@
 import type { PixelStudioEngine, PixelToolId } from '@rpg-player/pixel-studio';
+import {
+  PixelBrushIcon,
+  PixelEraserIcon,
+  PixelGridIcon,
+  PixelRedoIcon,
+  PixelUndoIcon,
+} from '../ui/PixelIcons';
 
 interface ToolbarPanelProps {
   engine: PixelStudioEngine;
@@ -19,17 +26,15 @@ export function ToolbarPanel({
 
   function toolButtonClass(tool: PixelToolId): string {
     const active = state.activeTool === tool;
-    return `flex-1 rounded-md px-2.5 py-2 text-xs font-medium transition ${
-      active
-        ? 'bg-indigo-600 text-white shadow'
-        : 'bg-surface-800 text-slate-300 hover:bg-surface-700'
+    return `pixel-btn flex flex-1 items-center justify-center gap-1.5 px-2 py-2 text-[11px] font-bold ${
+      active ? 'pixel-btn-gold' : ''
     }`;
   }
 
   return (
-    <div className="space-y-4 border-b border-slate-800 p-3">
+    <div className="space-y-4 border-b-2 border-dnd-border p-3">
       <div>
-        <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+        <h3 className="mb-2 font-pixel text-[10px] font-bold uppercase tracking-wider text-dnd-gold">
           Outils
         </h3>
         <div className="flex gap-1.5">
@@ -39,7 +44,8 @@ export function ToolbarPanel({
             className={toolButtonClass('pencil')}
             title="Crayon pixel-perfect (B)"
           >
-            Crayon (B)
+            <PixelBrushIcon size={14} />
+            <span>Crayon</span>
           </button>
           <button
             type="button"
@@ -47,28 +53,27 @@ export function ToolbarPanel({
             className={toolButtonClass('eraser')}
             title="Gomme (E)"
           >
-            Gomme (E)
+            <PixelEraserIcon size={14} />
+            <span>Gomme</span>
           </button>
         </div>
       </div>
 
       <div>
         <div className="mb-1.5 flex items-center justify-between text-[11px]">
-          <span className="font-semibold uppercase tracking-wider text-slate-400">
+          <span className="font-pixel text-[10px] font-bold uppercase tracking-wider text-dnd-muted">
             Taille brosse
           </span>
-          <span className="font-mono text-slate-300">{state.brushSize}px</span>
+          <span className="font-mono text-dnd-gold">{state.brushSize}px</span>
         </div>
-        <div className="grid grid-cols-4 gap-1">
+        <div className="grid grid-cols-4 gap-1.5">
           {BRUSH_SIZES.map((size) => (
             <button
               key={size}
               type="button"
               onClick={() => engine.setBrushSize(size)}
-              className={`rounded py-1 text-xs font-mono transition ${
-                state.brushSize === size
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-surface-800 text-slate-300 hover:bg-surface-700'
+              className={`pixel-btn py-1 font-mono text-xs ${
+                state.brushSize === size ? 'pixel-btn-gold' : ''
               }`}
             >
               {size}px
@@ -83,37 +88,38 @@ export function ToolbarPanel({
           onClick={() => engine.undo()}
           disabled={!engine.canUndo()}
           title="Annuler (Ctrl+Z)"
-          className="rounded bg-surface-800 px-2 py-1.5 text-xs text-slate-200 transition hover:bg-surface-700 disabled:cursor-not-allowed disabled:opacity-40"
+          className="pixel-btn flex items-center justify-center gap-1 px-2 py-1.5 text-[10px] disabled:cursor-not-allowed disabled:opacity-40"
         >
-          Annuler
+          <PixelUndoIcon size={13} />
+          <span>Annuler</span>
         </button>
         <button
           type="button"
           onClick={() => engine.redo()}
           disabled={!engine.canRedo()}
           title="Rétablir (Ctrl+Y)"
-          className="rounded bg-surface-800 px-2 py-1.5 text-xs text-slate-200 transition hover:bg-surface-700 disabled:cursor-not-allowed disabled:opacity-40"
+          className="pixel-btn flex items-center justify-center gap-1 px-2 py-1.5 text-[10px] disabled:cursor-not-allowed disabled:opacity-40"
         >
-          Rétablir
+          <PixelRedoIcon size={13} />
+          <span>Rétablir</span>
         </button>
       </div>
 
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+          <span className="font-pixel text-[10px] font-bold uppercase tracking-wider text-dnd-muted">
             Affichage
           </span>
           <button
             type="button"
             onClick={() => engine.setShowGrid(!state.showGrid)}
-            className={`rounded px-2 py-0.5 text-[11px] font-medium transition ${
-              state.showGrid
-                ? 'bg-indigo-600/30 text-indigo-200 ring-1 ring-indigo-500/60'
-                : 'bg-surface-800 text-slate-400 hover:bg-surface-700'
+            className={`pixel-btn flex items-center gap-1 px-2 py-0.5 text-[10px] ${
+              state.showGrid ? 'border-dnd-gold text-dnd-gold' : 'text-dnd-muted'
             }`}
             title="Afficher / masquer la grille (G)"
           >
-            Grille : {state.showGrid ? 'ON' : 'OFF'}
+            <PixelGridIcon size={12} />
+            <span>Grille : {state.showGrid ? 'ON' : 'OFF'}</span>
           </button>
         </div>
 
@@ -121,14 +127,14 @@ export function ToolbarPanel({
           <button
             type="button"
             onClick={() => onZoomChange(Math.max(1, zoom - 2))}
-            className="rounded bg-surface-800 px-2.5 py-1 text-xs text-slate-200 hover:bg-surface-700"
+            className="pixel-btn px-2.5 py-1 text-xs"
           >
             −
           </button>
           <button
             type="button"
             onClick={onResetZoom}
-            className="flex-1 rounded bg-surface-800 py-1 font-mono text-xs text-slate-200 hover:bg-surface-700"
+            className="pixel-btn flex-1 py-1 font-mono text-xs text-dnd-gold"
             title="Réinitialiser le zoom"
           >
             {zoom}×
@@ -136,7 +142,7 @@ export function ToolbarPanel({
           <button
             type="button"
             onClick={() => onZoomChange(Math.min(32, zoom + 2))}
-            className="rounded bg-surface-800 px-2.5 py-1 text-xs text-slate-200 hover:bg-surface-700"
+            className="pixel-btn px-2.5 py-1 text-xs"
           >
             +
           </button>

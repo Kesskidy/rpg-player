@@ -47,15 +47,15 @@ export function DialogueOverlay({
       )}
 
       <div className="absolute inset-x-0 bottom-4 z-30 flex justify-center px-4">
-        <div className="w-full max-w-2xl rounded-xl border-2 border-indigo-400/70 bg-surface-900/95 p-4 shadow-2xl backdrop-blur">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-            <span className="rounded bg-indigo-600/30 px-2.5 py-0.5 text-xs font-bold text-indigo-200 ring-1 ring-indigo-500/50">
+        <div className="pixel-panel w-full max-w-2xl border-dnd-gold p-4">
+          <div className="flex items-center justify-between border-b-2 border-dnd-border pb-2">
+            <span className="border-2 border-dnd-gold bg-dnd-surface px-2.5 py-0.5 font-pixel text-xs font-bold text-dnd-gold shadow-pixel-sm">
               {step.speaker || 'Narration'}
             </span>
             <button
               type="button"
               onClick={onClose}
-              className="rounded px-2 py-0.5 text-[11px] text-slate-400 hover:bg-surface-800 hover:text-white"
+              className="pixel-btn px-2 py-0.5 text-[10px] text-dnd-muted"
             >
               Fermer (Échap)
             </button>

@@ -12,6 +12,8 @@
     "electron:start": "npm run build:electron && electron ."
   },
   "dependencies": {
+    "@fontsource/jetbrains-mono": "^5.3.0",
+    "@fontsource/silkscreen": "^5.3.0",
     "@rpg-player/core-types": "*",
     "@rpg-player/narrative-editor": "*",
     "@rpg-player/pixel-studio": "*",

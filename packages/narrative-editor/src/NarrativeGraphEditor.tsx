@@ -98,49 +98,49 @@ export function NarrativeGraphEditor({
 
   return (
     <div className="flex flex-1 overflow-hidden">
-      <div className="relative flex flex-1 flex-col overflow-hidden bg-[#0b0d12]">
-        <div className="flex items-center justify-between border-b border-slate-800 bg-[#121620] px-3 py-2">
+      <div className="relative flex flex-1 flex-col overflow-hidden bg-[#141218]">
+        <div className="flex items-center justify-between border-b-2 border-[#3E354A] bg-[#1E1A24] px-3 py-2">
           <div className="flex items-center gap-1.5">
-            <span className="mr-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+            <span className="mr-2 text-[11px] font-semibold uppercase tracking-wider text-[#A69B8D]">
               Ajouter :
             </span>
             <button
               type="button"
               onClick={() => handleAddNode('dialogue')}
-              className="rounded bg-indigo-600/30 px-2.5 py-1 text-xs font-medium text-indigo-200 ring-1 ring-indigo-500/50 hover:bg-indigo-600/50"
+              className="border-2 border-[#204872] bg-[#3C78B5]/30 px-2.5 py-1 text-xs font-bold text-[#EFE6D5] hover:bg-[#3C78B5]/60"
             >
               + Dialogue
             </button>
             <button
               type="button"
               onClick={() => handleAddNode('condition')}
-              className="rounded bg-emerald-600/25 px-2.5 py-1 text-xs font-medium text-emerald-200 ring-1 ring-emerald-500/40 hover:bg-emerald-600/45"
+              className="border-2 border-[#215E33] bg-[#3D9956]/30 px-2.5 py-1 text-xs font-bold text-[#EFE6D5] hover:bg-[#3D9956]/60"
             >
               + Condition
             </button>
             <button
               type="button"
               onClick={() => handleAddNode('action')}
-              className="rounded bg-amber-600/25 px-2.5 py-1 text-xs font-medium text-amber-200 ring-1 ring-amber-500/40 hover:bg-amber-600/45"
+              className="border-2 border-[#8A6118] bg-[#DFA842]/25 px-2.5 py-1 text-xs font-bold text-[#DFA842] hover:bg-[#DFA842]/45"
             >
               + Action RPG
             </button>
             <button
               type="button"
               onClick={() => handleAddNode('cinematic')}
-              className="rounded bg-purple-600/25 px-2.5 py-1 text-xs font-medium text-purple-200 ring-1 ring-purple-500/40 hover:bg-purple-600/45"
+              className="border-2 border-[#574B66] bg-[#2A2433] px-2.5 py-1 text-xs font-bold text-[#DFA842] hover:border-[#DFA842]"
             >
               + Cinématique
             </button>
             <button
               type="button"
               onClick={() => handleAddNode('end')}
-              className="rounded bg-rose-600/25 px-2.5 py-1 text-xs font-medium text-rose-200 ring-1 ring-rose-500/40 hover:bg-rose-600/45"
+              className="border-2 border-[#7A1A1A] bg-[#C83232]/30 px-2.5 py-1 text-xs font-bold text-[#EFE6D5] hover:bg-[#C83232]/60"
             >
               + Fin
             </button>
           </div>
-          <span className="text-[11px] text-slate-500">
+          <span className="text-[11px] text-[#A69B8D]">
             Reliez les points de sortie aux nœuds suivants (style Twine)
           </span>
         </div>
@@ -156,18 +156,18 @@ export function NarrativeGraphEditor({
             fitView
             colorMode="dark"
           >
-            <Background color="#252d40" gap={20} />
+            <Background color="#3E354A" gap={20} />
             <Controls />
             <MiniMap
-              nodeColor="#4f46e5"
-              maskColor="rgba(11, 13, 18, 0.75)"
-              style={{ backgroundColor: '#121620' }}
+              nodeColor="#DFA842"
+              maskColor="rgba(11, 9, 14, 0.8)"
+              style={{ backgroundColor: '#1E1A24' }}
             />
           </ReactFlow>
         </div>
       </div>
 
-      <aside className="w-80 border-l border-slate-800 bg-[#121620]">
+      <aside className="w-80 border-l-2 border-[#3E354A] bg-[#1E1A24]">
         <NodeInspector
           graph={graph}
           selectedNodeId={selectedNodeId}

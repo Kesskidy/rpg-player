@@ -17,6 +17,7 @@ import {
 } from '@rpg-player/rpg-engine';
 import { VttClient, VttRoomManager } from '@rpg-player/vtt-network';
 import { loadMap, loadRpgDatabase } from '../../storage/project-service';
+import { PixelCrownIcon, PixelDiceIcon, PixelGridIcon } from '../ui/PixelIcons';
 import { VttChatDicePanel } from './VttChatDicePanel';
 import { VttLobby, type CreateRoomForm, type JoinRoomForm } from './VttLobby';
 import { VttSheetPanel } from './VttSheetPanel';
@@ -531,18 +532,22 @@ export function VttWorkspace({ storage, project }: VttWorkspaceProps) {
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       {/* VTT Session Top Strip */}
-      <div className="flex items-center justify-between border-b border-slate-800 bg-surface-900/90 px-4 py-1.5 text-xs">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b-2 border-dnd-border bg-dnd-stone px-4 py-1.5 text-xs">
         <div className="flex items-center gap-3">
-          <span
-            className={`rounded px-2 py-0.5 text-[10px] font-bold uppercase ${
-              isGm
-                ? 'bg-amber-500/20 text-amber-300 ring-1 ring-amber-500/40'
-                : 'bg-cyan-500/20 text-cyan-300 ring-1 ring-cyan-500/40'
-            }`}
-          >
-            {isGm ? 'MJ / Admin' : 'Joueur'}
+          {isGm ? (
+            <span className="pixel-badge-gm inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[10px] font-bold uppercase">
+              <PixelCrownIcon size={14} />
+              <span>Maître du Jeu</span>
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 border-2 border-dnd-arcane bg-indigo-950/70 px-2.5 py-0.5 font-pixel text-[10px] font-bold uppercase text-dnd-parchment shadow-pixel-sm">
+              <PixelDiceIcon size={14} />
+              <span>Joueur</span>
+            </span>
+          )}
+          <span className="font-pixel text-xs font-bold text-dnd-parchment">
+            {roomState.roomName}
           </span>
-          <span className="font-semibold text-white">{roomState.roomName}</span>
           <button
             type="button"
             onClick={() => {
@@ -550,12 +555,12 @@ export function VttWorkspace({ storage, project }: VttWorkspaceProps) {
               setCopiedCode(true);
               setTimeout(() => setCopiedCode(false), 1500);
             }}
-            className="rounded border border-slate-700 bg-surface-800 px-2 py-0.5 font-mono text-[11px] text-indigo-300 hover:bg-surface-700"
+            className="pixel-btn px-2 py-0.5 font-mono text-[11px] text-dnd-gold"
             title="Copier le code d’invitation"
           >
-            Code : {roomState.roomCode} {copiedCode ? '✓' : '📋'}
+            Code : {roomState.roomCode} {copiedCode ? '✓' : '⊞'}
           </button>
-          <span className="text-[11px] text-slate-400">
+          <span className="text-[11px] text-dnd-muted">
             {roomState.participants.filter((p) => p.connected).length} connecté(s)
           </span>
         </div>
@@ -565,22 +570,23 @@ export function VttWorkspace({ storage, project }: VttWorkspaceProps) {
             <button
               type="button"
               onClick={handleToggleDemoRole}
-              className="rounded-md bg-emerald-600/25 px-3 py-1 text-xs font-semibold text-emerald-200 ring-1 ring-emerald-500/50 hover:bg-emerald-600/45"
+              className="pixel-btn pixel-btn-emerald px-3 py-1 text-[11px] font-bold"
             >
-              Basculer vue : {isGm ? 'Voir en Joueur' : 'Revenir en MJ'}
+              Basculer : {isGm ? 'Vue Joueur' : 'Vue MJ'}
             </button>
           )}
           <button
             type="button"
             onClick={() => setShowGrid((g) => !g)}
-            className="rounded bg-surface-800 px-2.5 py-1 text-[11px] text-slate-300 hover:bg-surface-700"
+            className="pixel-btn flex items-center gap-1 px-2.5 py-1 text-[11px]"
           >
-            Grille : {showGrid ? 'ON' : 'OFF'}
+            <PixelGridIcon size={13} />
+            <span>Grille : {showGrid ? 'ON' : 'OFF'}</span>
           </button>
           <button
             type="button"
             onClick={handleLeaveRoom}
-            className="rounded bg-rose-950/60 px-2.5 py-1 text-[11px] text-rose-300 hover:bg-rose-900/60"
+            className="pixel-btn pixel-btn-dragon px-2.5 py-1 text-[11px] font-bold"
           >
             Quitter
           </button>

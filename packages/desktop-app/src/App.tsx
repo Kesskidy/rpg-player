@@ -7,6 +7,14 @@ import { AnimationStudioWorkspace } from './components/animation-studio/Animatio
 import { CreditsModal } from './components/CreditsModal';
 import { PixelStudioWorkspace } from './components/pixel-studio/PixelStudioWorkspace';
 import { RpgEngineHub } from './components/rpg-engine/RpgEngineHub';
+import {
+  PixelBrushIcon,
+  PixelDiceIcon,
+  PixelFilmIcon,
+  PixelFolderIcon,
+  PixelSparkIcon,
+  PixelSwordIcon,
+} from './components/ui/PixelIcons';
 import { VttWorkspace } from './components/vtt/VttWorkspace';
 import { createStorageAdapter } from './storage/adapter';
 import { loadDemoPackProject } from './storage/demo-loader';
@@ -66,66 +74,64 @@ export function App() {
   }
 
   return (
-    <div className="flex h-screen flex-col bg-surface-950 text-slate-100">
-      <header className="flex items-center justify-between border-b border-slate-800 bg-surface-900 px-4 py-2">
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2">
-            <span className="inline-flex h-7 w-7 items-center justify-center rounded bg-indigo-600 text-xs font-bold tracking-tight">
-              RP
+    <div className="flex h-screen flex-col bg-dnd-obsidian text-dnd-parchment">
+      <header className="flex flex-wrap items-center justify-between gap-2 border-b-2 border-dnd-border bg-dnd-stone px-4 py-2 shadow-pixel-sm">
+        <div className="flex items-center gap-5">
+          <div className="flex items-center gap-2.5">
+            <span className="inline-flex h-8 w-8 items-center justify-center border-2 border-dnd-gold bg-dnd-dragon shadow-pixel-sm">
+              <PixelSwordIcon size={18} />
             </span>
             <div>
-              <h1 className="text-sm font-semibold leading-none">RPG Player Studio</h1>
-              <p className="mt-0.5 text-[11px] text-slate-400">
+              <h1 className="font-pixel text-sm font-bold leading-none text-dnd-gold">
+                RPG Player Studio
+              </h1>
+              <p className="mt-1 text-[10px] text-dnd-muted">
                 Studio v{PIXEL_STUDIO_VERSION} · Engine v{RPG_ENGINE_VERSION} · VTT v
                 {VTT_NETWORK_VERSION}
               </p>
             </div>
           </div>
 
-          <nav className="flex items-center gap-1" aria-label="Modules">
+          <nav className="flex items-center gap-1.5" aria-label="Modules">
             <button
               type="button"
               onClick={() => setActiveTab('pixel-studio')}
-              className={`rounded px-3 py-1.5 text-xs font-medium transition ${
-                activeTab === 'pixel-studio'
-                  ? 'bg-indigo-600 text-white'
-                  : 'text-slate-300 hover:bg-surface-800'
+              className={`pixel-tab flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold ${
+                activeTab === 'pixel-studio' ? 'pixel-tab-active' : ''
               }`}
             >
-              1. Pixel Studio
+              <PixelBrushIcon size={14} />
+              <span>1. Pixel Studio</span>
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('animation-studio')}
-              className={`rounded px-3 py-1.5 text-xs font-medium transition ${
-                activeTab === 'animation-studio'
-                  ? 'bg-cyan-600 text-white'
-                  : 'text-slate-300 hover:bg-surface-800'
+              className={`pixel-tab flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold ${
+                activeTab === 'animation-studio' ? 'pixel-tab-active' : ''
               }`}
             >
-              2. Animation Studio
+              <PixelFilmIcon size={14} />
+              <span>2. Animation</span>
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('rpg-engine')}
-              className={`rounded px-3 py-1.5 text-xs font-medium transition ${
-                activeTab === 'rpg-engine'
-                  ? 'bg-indigo-600 text-white'
-                  : 'text-slate-300 hover:bg-surface-800'
+              className={`pixel-tab flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold ${
+                activeTab === 'rpg-engine' ? 'pixel-tab-active' : ''
               }`}
             >
-              3. RPG Engine
+              <PixelSwordIcon size={14} />
+              <span>3. RPG Engine</span>
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('vtt')}
-              className={`rounded px-3 py-1.5 text-xs font-medium transition ${
-                activeTab === 'vtt'
-                  ? 'bg-indigo-600 text-white'
-                  : 'text-slate-300 hover:bg-surface-800'
+              className={`pixel-tab flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold ${
+                activeTab === 'vtt' ? 'pixel-tab-active' : ''
               }`}
             >
-              4. VTT / Mode JDR
+              <PixelDiceIcon size={14} />
+              <span>4. VTT / JDR</span>
             </button>
           </nav>
         </div>
@@ -133,19 +139,19 @@ export function App() {
         <div className="flex items-center gap-2">
           {project ? (
             <div
-              className="flex items-center gap-2 rounded border border-emerald-500/30 bg-emerald-950/30 px-2.5 py-1 text-[11px] text-emerald-200"
+              className="flex items-center gap-2 border-2 border-dnd-emerald bg-emerald-950/60 px-2.5 py-1 text-[11px] text-dnd-parchment shadow-pixel-sm"
               title={projectPath ?? ''}
             >
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-              <span className="max-w-44 truncate font-medium">{project.name}</span>
-              <span className="text-emerald-400/70">
+              <span className="h-2 w-2 bg-dnd-emerald" />
+              <span className="max-w-44 truncate font-bold text-dnd-gold">{project.name}</span>
+              <span className="text-dnd-muted">
                 ({Object.keys(project.assets).length} assets ·{' '}
                 {Object.keys(project.maps ?? {}).length} maps)
               </span>
             </div>
           ) : (
-            <span className="rounded border border-slate-700 bg-surface-800 px-2 py-1 text-[11px] text-slate-400">
-              Aucun projet · <strong className="text-indigo-300">{storage.mode}</strong>
+            <span className="border-2 border-dnd-border bg-dnd-surface px-2 py-1 text-[11px] text-dnd-muted">
+              Aucun projet · <strong className="text-dnd-gold">{storage.mode}</strong>
             </span>
           )}
 
@@ -153,23 +159,25 @@ export function App() {
             type="button"
             disabled={loadingDemo}
             onClick={() => void handleLoadDemoPack()}
-            className="rounded bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-50"
+            className="pixel-btn pixel-btn-dragon flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold disabled:opacity-50"
           >
-            {loadingDemo ? 'Chargement...' : 'Charger le projet de démo'}
+            <PixelSparkIcon size={14} />
+            <span>{loadingDemo ? 'Chargement...' : 'Projet Démo'}</span>
           </button>
 
           <button
             type="button"
             onClick={() => void handleSelectProjectDirectory()}
-            className="rounded bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-indigo-500"
+            className="pixel-btn pixel-btn-arcane flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold"
           >
-            {project ? 'Ouvrir local' : 'Ouvrir / Créer'}
+            <PixelFolderIcon size={14} />
+            <span>{project ? 'Ouvrir' : 'Ouvrir / Créer'}</span>
           </button>
 
           <button
             type="button"
             onClick={() => setCreditsOpen(true)}
-            className="rounded border border-slate-700 bg-surface-800 px-2.5 py-1.5 text-xs text-slate-300 transition hover:bg-surface-700 hover:text-white"
+            className="pixel-btn px-2.5 py-1.5 text-[11px] font-bold text-dnd-gold"
           >
             Crédits
           </button>
@@ -215,14 +223,14 @@ export function App() {
         {activeTab === 'vtt' && <VttWorkspace storage={storage} project={project} />}
       </main>
 
-      <footer className="flex items-center justify-between border-t border-slate-800 bg-surface-900 px-4 py-1 text-[11px] text-slate-500">
+      <footer className="flex items-center justify-between border-t-2 border-dnd-border bg-dnd-stone px-4 py-1 text-[11px] text-dnd-muted">
         <span>
-          RPG Player Studio — Suite Complète (Pixel Studio · Animation Studio · RPG Engine · VTT)
+          RPG Player Studio — Grimoire Créatif 16-bit (Pixel Studio · Animation · RPG Engine · VTT)
         </span>
         <button
           type="button"
           onClick={() => setCreditsOpen(true)}
-          className="text-indigo-300/80 transition hover:text-indigo-200"
+          className="font-pixel text-[10px] text-dnd-gold transition hover:text-dnd-parchment"
         >
           Made by Gemini Neon
         </button>

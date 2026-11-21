@@ -15,6 +15,7 @@ import { getDefaultAIProfile, InventorySystem } from '@rpg-player/rpg-engine';
 import { saveRpgDatabase } from '../../storage/project-service';
 import { CharacterSheetsPanel } from './CharacterSheetsPanel';
 import { CombatOverlay } from './CombatOverlay';
+import { PixelSaveIcon } from '../ui/PixelIcons';
 
 interface DatabaseWorkspaceProps {
   storage: ProjectStorageAdapter;
@@ -182,10 +183,8 @@ export function DatabaseWorkspace({
               key={item.id}
               type="button"
               onClick={() => setSection(item.id)}
-              className={`w-full rounded px-3 py-2 text-left text-xs font-medium transition ${
-                section === item.id
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-surface-800/50 text-slate-300 hover:bg-surface-800'
+              className={`pixel-btn w-full px-3 py-2 text-left text-[11px] font-bold ${
+                section === item.id ? 'pixel-btn-gold' : ''
               }`}
             >
               {item.label}
@@ -193,14 +192,15 @@ export function DatabaseWorkspace({
           ))}
         </div>
 
-        <div className="mt-auto space-y-2 border-t border-slate-800 pt-3">
+        <div className="mt-auto space-y-2 border-t-2 border-dnd-border pt-3">
           <button
             type="button"
             disabled={isSaving}
             onClick={() => void handleSaveDb()}
-            className="w-full rounded-md bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-500 disabled:opacity-50"
+            className="pixel-btn pixel-btn-emerald flex w-full items-center justify-center gap-1.5 px-3 py-2 text-[11px] font-bold disabled:opacity-50"
           >
-            {isSaving ? 'Sauvegarde...' : 'Sauvegarder la BDD'}
+            <PixelSaveIcon size={14} />
+            <span>{isSaving ? 'Sauvegarde...' : 'Sauvegarder la BDD'}</span>
           </button>
           {feedback && (
             <p
