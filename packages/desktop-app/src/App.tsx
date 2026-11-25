@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ProjectManifest, ProjectStorageAdapter } from '@rpg-player/core-types';
 import { PIXEL_STUDIO_VERSION } from '@rpg-player/pixel-studio';
 import { RPG_ENGINE_VERSION } from '@rpg-player/rpg-engine';
@@ -6,6 +6,7 @@ import { VTT_NETWORK_VERSION } from '@rpg-player/vtt-network';
 import { AnimationStudioWorkspace } from './components/animation-studio/AnimationStudioWorkspace';
 import { CreditsModal } from './components/CreditsModal';
 import { PixelStudioWorkspace } from './components/pixel-studio/PixelStudioWorkspace';
+import { ProjectIssuesModal } from './components/ProjectIssuesModal';
 import { RpgEngineHub } from './components/rpg-engine/RpgEngineHub';
 import {
   PixelBrushIcon,
@@ -17,6 +18,13 @@ import {
 } from './components/ui/PixelIcons';
 import { VttWorkspace } from './components/vtt/VttWorkspace';
 import { createStorageAdapter } from './storage/adapter';
+import {
+  getRecoverableAutosave,
+  markAutosaveSessionClean,
+  restoreAutosave,
+  writeProjectAutosave,
+  type AutosaveEntry,
+} from './storage/autosave';
 import { loadDemoPackProject } from './storage/demo-loader';
 import { createProject, openProject } from './storage/project-service';
 
@@ -30,9 +38,29 @@ export function App() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [loadingDemo, setLoadingDemo] = useState(false);
   const [creditsOpen, setCreditsOpen] = useState(false);
+  const [issuesOpen, setIssuesOpen] = useState(false);
+  const [recoverableAutosave, setRecoverableAutosave] = useState<AutosaveEntry | null>(null);
+
+  // Periodic background autosave (every 3 min) on disk projects + clean exit marker (A2)
+  useEffect(() => {
+    if (!project || storage.mode === 'memory') return;
+    const timer = setInterval(() => {
+      void writeProjectAutosave(storage, project).catch(() => undefined);
+    }, 3 * 60 * 1000);
+
+    const handleBeforeUnload = () => {
+      void markAutosaveSessionClean(storage);
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [storage, project]);
 
   async function handleSelectProjectDirectory() {
     setErrorMessage(null);
+    setRecoverableAutosave(null);
     const previousElectronPath =
       typeof window !== 'undefined' && window.rpgPlayerFs
         ? await window.rpgPlayerFs.getCurrentProjectPath()
@@ -49,9 +77,13 @@ export function App() {
         ? existing
         : await createProject(nativeAdapter, picked.name || 'Mon Projet RPG');
 
+      const recovery =
+        nativeAdapter.mode !== 'memory' ? await getRecoverableAutosave(nativeAdapter) : null;
+
       setStorage(nativeAdapter);
       setProjectPath(picked.path);
       setProject(nextManifest);
+      setRecoverableAutosave(recovery);
     } catch (error) {
       // Roll back Electron currentProjectRoot so a failed open can never overwrite another folder
       if (typeof window !== 'undefined' && window.rpgPlayerFs?.setCurrentProjectPath) {
@@ -182,6 +214,17 @@ export function App() {
             <span>{project ? 'Ouvrir' : 'Ouvrir / Créer'}</span>
           </button>
 
+          {project && (
+            <button
+              type="button"
+              onClick={() => setIssuesOpen(true)}
+              title="Vérifier la cohérence du projet (téléportations, dialogues, objets, sprites)"
+              className="pixel-btn px-2.5 py-1.5 text-[11px] font-bold text-amber-300"
+            >
+              Problèmes
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => setCreditsOpen(true)}
@@ -191,6 +234,45 @@ export function App() {
           </button>
         </div>
       </header>
+
+      {recoverableAutosave && (
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-500/40 bg-amber-950/60 px-4 py-1.5 text-xs text-amber-100">
+          <span>
+            Sauvegarde automatique détectée ({new Date(recoverableAutosave.savedAt).toLocaleString()}
+            ) suite à un arrêt inattendu.
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                void restoreAutosave(storage, recoverableAutosave)
+                  .then((restored) => {
+                    setProject(restored);
+                    setRecoverableAutosave(null);
+                  })
+                  .catch((err) =>
+                    setErrorMessage(
+                      err instanceof Error ? err.message : 'Échec de la restauration.',
+                    ),
+                  );
+              }}
+              className="pixel-btn pixel-btn-gold px-2.5 py-0.5 text-[11px] font-bold"
+            >
+              Restaurer
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                void markAutosaveSessionClean(storage);
+                setRecoverableAutosave(null);
+              }}
+              className="pixel-btn px-2 py-0.5 text-[11px]"
+            >
+              Ignorer
+            </button>
+          </div>
+        </div>
+      )}
 
       {errorMessage && (
         <div className="flex items-center justify-between border-b border-rose-500/40 bg-rose-950/60 px-4 py-1.5 text-xs text-rose-200">
@@ -255,6 +337,13 @@ export function App() {
       </footer>
 
       <CreditsModal open={creditsOpen} onClose={() => setCreditsOpen(false)} />
+      <ProjectIssuesModal
+        open={issuesOpen}
+        storage={storage}
+        project={project}
+        onNavigateTab={(tab) => setActiveTab(tab)}
+        onClose={() => setIssuesOpen(false)}
+      />
     </div>
   );
 }

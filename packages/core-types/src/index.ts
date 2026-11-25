@@ -5,4 +5,6 @@ export * from './narrative.js';
 export * from './pixel-document.js';
 export * from './project.js';
 export * from './rpg.js';
+export * from './validation.js';
 export * from './vtt.js';
+export * from './vtt-validation.js';

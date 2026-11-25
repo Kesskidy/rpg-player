@@ -1,7 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { MAP_SCHEMA_VERSION, type TileMapData, type VttServerMessage } from '@rpg-player/core-types';
-import { rollDiceFormula, VttRoomManager } from '../index.js';
-import { createVttProtocolRouter, type VttSocketLike } from '../server.js';
+import {
+  formatInvitation,
+  parseInvitation,
+  rollDiceFormula,
+  VttClient,
+  VttRoomManager,
+  type VttConnectionStatus,
+} from '../index.js';
+import {
+  createVttProtocolRouter,
+  extractConnectionContext,
+  type VttSocketLike,
+} from '../server.js';
 
 function makeTestMap(id = 'map_tavern', name = 'Taverne'): TileMapData {
   const width = 10;
@@ -548,5 +559,204 @@ describe('vtt-network authoritative room manager & dice', () => {
     router.unregister(plr2.socket);
     expect(manager.pruneIdleRooms(0, Date.now() + 1000)).toContain(roomCode);
     expect(manager.getRoomCodes()).not.toContain(roomCode);
+  });
+
+  it('formats and parses Cloudflare, LAN, wss://, and bare code invitations (B4 + B7)', () => {
+    expect(formatInvitation('wss://vive-lune-42.trycloudflare.com', 'abcd2345')).toBe(
+      'vive-lune-42.trycloudflare.com#ABCD2345',
+    );
+    expect(parseInvitation('vive-lune-42.trycloudflare.com#abcd2345')).toEqual({
+      serverUrl: 'wss://vive-lune-42.trycloudflare.com',
+      roomCode: 'ABCD2345',
+    });
+    expect(parseInvitation('https://test-host.trycloudflare.com#K7M4P2Q9')).toEqual({
+      serverUrl: 'wss://test-host.trycloudflare.com',
+      roomCode: 'K7M4P2Q9',
+    });
+    expect(parseInvitation('192.168.1.42:54321#k7m4p2')).toEqual({
+      serverUrl: 'ws://192.168.1.42:54321',
+      roomCode: 'K7M4P2',
+    });
+    expect(parseInvitation('K7M4P2', 'ws://localhost:8765')).toEqual({
+      serverUrl: 'ws://localhost:8765',
+      roomCode: 'K7M4P2',
+    });
+    expect(parseInvitation('')).toBeNull();
+  });
+
+  it('hardens public exposure: 8-char room code, local-only create_room, per-IP rate limit, and ROOM_FULL (B5 + B7)', () => {
+    const manager = new VttRoomManager({
+      exposure: 'public',
+      maxParticipants: 3,
+      maxJoinFailuresPerMinute: 3,
+    });
+    const router = createVttProtocolRouter(manager);
+
+    const makeMockSocket = () => {
+      const received: VttServerMessage[] = [];
+      const socket: VttSocketLike = {
+        readyState: 1,
+        send(data: string) {
+          received.push(JSON.parse(data) as VttServerMessage);
+        },
+      };
+      return { socket, received };
+    };
+
+    // Detect tunneled vs local HTTP upgrade context
+    expect(
+      extractConnectionContext({
+        headers: { 'cf-connecting-ip': '203.0.113.10' },
+        socket: { remoteAddress: '127.0.0.1' } as never,
+      }),
+    ).toEqual({ clientIp: '203.0.113.10', isLocal: false });
+    expect(
+      extractConnectionContext({
+        headers: {},
+        socket: { remoteAddress: '127.0.0.1' } as never,
+      }),
+    ).toEqual({ clientIp: '127.0.0.1', isLocal: true });
+
+    // Remote client trying create_room is forbidden in public mode
+    const remoteAttacker = makeMockSocket();
+    router.register(remoteAttacker.socket, { clientIp: '203.0.113.55', isLocal: false });
+    router.handleRawMessage(
+      remoteAttacker.socket,
+      JSON.stringify({
+        type: 'create_room',
+        roomName: 'Hijack',
+        gmName: 'Attacker',
+        initialMap: makeTestMap(),
+      }),
+    );
+    expect(remoteAttacker.received[0]?.type).toBe('error');
+    if (remoteAttacker.received[0]?.type === 'error') {
+      expect(remoteAttacker.received[0].code).toBe('FORBIDDEN_REMOTE_CREATE');
+    }
+
+    // Local GM creates room -> gets an 8-char CSPRNG code
+    const localGm = makeMockSocket();
+    router.register(localGm.socket, { clientIp: '127.0.0.1', isLocal: true });
+    router.handleRawMessage(
+      localGm.socket,
+      JSON.stringify({
+        type: 'create_room',
+        roomName: 'Campagne Publique',
+        gmName: 'MJ',
+        initialMap: makeTestMap(),
+      }),
+    );
+    const gmJoined = localGm.received.find((m) => m.type === 'room_joined');
+    expect(gmJoined?.type).toBe('room_joined');
+    if (!gmJoined || gmJoined.type !== 'room_joined') return;
+    expect(gmJoined.roomCode).toHaveLength(8);
+
+    // Rate limit: 3 failed join_room attempts from same IP trigger RATE_LIMITED on 4th
+    const now = 1_700_000_000_000;
+    for (let i = 0; i < 3; i += 1) {
+      router.handleRawMessage(
+        remoteAttacker.socket,
+        JSON.stringify({ type: 'join_room', roomCode: 'BADCODE1', playerName: 'Brute' }),
+        now + i * 1000,
+      );
+    }
+    remoteAttacker.received.length = 0;
+    router.handleRawMessage(
+      remoteAttacker.socket,
+      JSON.stringify({ type: 'join_room', roomCode: gmJoined.roomCode, playerName: 'Brute' }),
+      now + 4000,
+    );
+    expect(remoteAttacker.received[0]?.type).toBe('error');
+    if (remoteAttacker.received[0]?.type === 'error') {
+      expect(remoteAttacker.received[0].code).toBe('RATE_LIMITED');
+    }
+
+    // Fill room to maxParticipants (3: GM + 2 players) -> 3rd player receives ROOM_FULL
+    const p1 = makeMockSocket();
+    const p2 = makeMockSocket();
+    const p3 = makeMockSocket();
+    router.register(p1.socket, { clientIp: '198.51.100.1', isLocal: false });
+    router.register(p2.socket, { clientIp: '198.51.100.2', isLocal: false });
+    router.register(p3.socket, { clientIp: '198.51.100.3', isLocal: false });
+
+    for (const [sock, name] of [
+      [p1, 'P1'],
+      [p2, 'P2'],
+      [p3, 'P3'],
+    ] as const) {
+      router.handleRawMessage(
+        sock.socket,
+        JSON.stringify({ type: 'join_room', roomCode: gmJoined.roomCode, playerName: name }),
+      );
+    }
+    expect(p1.received.some((m) => m.type === 'room_joined')).toBe(true);
+    expect(p2.received.some((m) => m.type === 'room_joined')).toBe(true);
+    expect(p3.received[0]?.type).toBe('error');
+    if (p3.received[0]?.type === 'error') {
+      expect(p3.received[0].code).toBe('ROOM_FULL');
+    }
+  });
+
+  it('auto-reconnects VttClient with exponential backoff and re-sends sessionToken (A3)', async () => {
+    const sentPayloads: string[] = [];
+    const createdSockets: FakeWs[] = [];
+
+    class FakeWs {
+      readyState = 0;
+      private listeners = new Map<string, Array<(ev: unknown) => void>>();
+      constructor(_url: string) {
+        createdSockets.push(this);
+        queueMicrotask(() => {
+          this.readyState = 1;
+          this.emit('open', {});
+        });
+      }
+      addEventListener(type: string, fn: (ev: unknown) => void) {
+        const list = this.listeners.get(type) ?? [];
+        list.push(fn);
+        this.listeners.set(type, list);
+      }
+      send(data: string) {
+        sentPayloads.push(data);
+      }
+      close() {
+        this.readyState = 3;
+        this.emit('close', {});
+      }
+      emit(type: string, ev: unknown) {
+        for (const fn of this.listeners.get(type) ?? []) fn(ev);
+      }
+    }
+
+    const statuses: VttConnectionStatus[] = [];
+    const client = new VttClient(
+      { onStatusChange: (s) => statuses.push(s) },
+      {
+        autoReconnect: true,
+        reconnectBaseDelayMs: 25,
+        WebSocketImpl: FakeWs as unknown as typeof WebSocket,
+      },
+    );
+
+    await client.connect('wss://demo.trycloudflare.com');
+    client.rememberSession({
+      roomCode: 'ABCD2345',
+      playerName: 'Léo',
+      sessionToken: 'ses_test_token',
+    });
+
+    // Simulate unexpected drop on first socket
+    createdSockets[0]!.emit('close', {});
+    expect(statuses).toContain('reconnecting');
+
+    await new Promise((r) => setTimeout(r, 80));
+    expect(createdSockets.length).toBeGreaterThanOrEqual(2);
+    const rejoin = sentPayloads
+      .map((raw) => JSON.parse(raw) as Record<string, unknown>)
+      .find((m) => m['type'] === 'join_room' && m['sessionToken'] === 'ses_test_token');
+    expect(rejoin).toBeDefined();
+    expect(rejoin?.['roomCode']).toBe('ABCD2345');
+
+    client.disconnect();
   });
 });

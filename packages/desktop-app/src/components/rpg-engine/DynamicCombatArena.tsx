@@ -381,8 +381,8 @@ export function DynamicCombatArena({
             <button
               type="button"
               onClick={() => {
-            if (engine.heroMeleeAttack()) notifyAction();
-          }}
+                if (engine.heroMeleeAttack()) notifyAction();
+              }}
               className="rounded bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-500"
             >
               ⚔ Frappe (Espace)

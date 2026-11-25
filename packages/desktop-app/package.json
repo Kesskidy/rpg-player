@@ -7,7 +7,7 @@
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
-    "build:electron": "tsc -p tsconfig.electron.json",
+    "build:electron": "node electron/build-electron.mjs",
     "build:web": "vite build",
     "build": "npm run build:electron && npm run build:web",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.electron.json --noEmit",

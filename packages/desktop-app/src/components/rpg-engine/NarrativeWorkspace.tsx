@@ -154,11 +154,10 @@ export function NarrativeWorkspace({
 
           {feedback && (
             <p
-              className={`rounded border px-2 py-1 text-[11px] ${
-                feedback.kind === 'ok'
-                  ? 'border-emerald-500/40 bg-emerald-950/50 text-emerald-200'
-                  : 'border-rose-500/40 bg-rose-950/50 text-rose-200'
-              }`}
+              className={`rounded border px-2 py-1 text-[11px] ${feedback.kind === 'ok'
+                ? 'border-emerald-500/40 bg-emerald-950/50 text-emerald-200'
+                : 'border-rose-500/40 bg-rose-950/50 text-rose-200'
+                }`}
             >
               {feedback.text}
             </p>
@@ -194,11 +193,10 @@ export function NarrativeWorkspace({
                 key={graph.id}
                 type="button"
                 onClick={() => onSelectNarrative(graph.id)}
-                className={`flex w-full items-center justify-between rounded border px-2.5 py-1.5 text-left text-xs transition ${
-                  graph.id === activeGraph.id
-                    ? 'border-indigo-500/80 bg-indigo-600/20 text-white'
-                    : 'border-slate-800 bg-surface-800/50 text-slate-300 hover:bg-surface-800'
-                }`}
+                className={`flex w-full items-center justify-between rounded border px-2.5 py-1.5 text-left text-xs transition ${graph.id === activeGraph.id
+                  ? 'border-indigo-500/80 bg-indigo-600/20 text-white'
+                  : 'border-slate-800 bg-surface-800/50 text-slate-300 hover:bg-surface-800'
+                  }`}
               >
                 <div className="min-w-0">
                   <div className="truncate font-medium">{graph.name}</div>

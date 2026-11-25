@@ -17,6 +17,7 @@ import type {
 } from '@rpg-player/core-types';
 import {
   AssetTextureRegistry,
+  cloneTileMap,
   createDefaultFeetCollider,
   createEmptyTileMap,
   InventorySystem,
@@ -453,10 +454,15 @@ export function MapEditorWorkspace({
     setPreviewMap(null);
 
     if (nextMode === 'preview') {
-      const freshInv = new InventorySystem(database);
+      // A4: Isolated Play Mode operates on deep clones of map, database & inventory
+      const isolatedMap = cloneTileMap(editor.getMap());
+      const isolatedDb = structuredClone(database);
+      const freshInv = new InventorySystem(isolatedDb);
       previewInventoryRef.current = freshInv;
       previewVarsRef.current = {};
-      const eff = freshInv.computeEffectiveStats(database.hero.stats);
+      setPreviewMap(isolatedMap);
+      viewportRef.current?.syncMap(isolatedMap);
+      const eff = freshInv.computeEffectiveStats(isolatedDb.hero.stats);
       setHeroHp(eff.maxHp);
       setHeroMp(eff.maxMp);
       setInventoryTick((t) => t + 1);

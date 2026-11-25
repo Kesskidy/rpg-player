@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { MapMeta, ProjectManifest } from '@rpg-player/core-types';
+import { parseInvitation, type VttExposureMode } from '@rpg-player/vtt-network';
 import {
   PixelCrownIcon,
   PixelDiceIcon,
@@ -9,6 +10,8 @@ import {
 
 export interface CreateRoomForm {
   serverUrl: string;
+  /** When set in Electron, starts the embedded VTT host (local / lan / Cloudflare public tunnel). */
+  hostExposure?: VttExposureMode;
   roomName: string;
   password: string;
   gmName: string;
@@ -25,24 +28,50 @@ export interface JoinRoomForm {
 interface VttLobbyProps {
   project: ProjectManifest | null;
   connecting: boolean;
+  hostStatusText?: string | null;
   errorMessage: string | null;
+  canRetryLan?: boolean;
+  onRetryLan?: () => void;
   onCreateRoom: (form: CreateRoomForm) => void;
   onJoinRoom: (form: JoinRoomForm) => void;
   onStartLocalDemo: (gmName: string, playerName: string, selectedMapId: string | null) => void;
   onLoadTavernScenario: () => void;
 }
 
+const HOST_MODES: Array<{ id: VttExposureMode; label: string; hint: string }> = [
+  {
+    id: 'public',
+    label: 'Sur Internet (Cloudflare)',
+    hint: 'Ouvre un Quick Tunnel chiffré (wss://) avec un code d’invitation à copier.',
+  },
+  {
+    id: 'lan',
+    label: 'Réseau local (LAN)',
+    hint: 'Accessible sur votre Wi-Fi / réseau local sans passer par Internet.',
+  },
+  {
+    id: 'local',
+    label: 'Ce PC uniquement',
+    hint: 'Serveur local sur 127.0.0.1 pour tester sur cette machine.',
+  },
+];
+
 export function VttLobby({
   project,
   connecting,
+  hostStatusText,
   errorMessage,
+  canRetryLan,
+  onRetryLan,
   onCreateRoom,
   onJoinRoom,
   onStartLocalDemo,
   onLoadTavernScenario,
 }: VttLobbyProps) {
   const projectMaps: MapMeta[] = project?.maps ? Object.values(project.maps) : [];
+  const hasEmbeddedHost = typeof window !== 'undefined' && Boolean(window.rpgPlayerVttHost);
 
+  const [hostExposure, setHostExposure] = useState<VttExposureMode>('public');
   const [serverUrl, setServerUrl] = useState('ws://localhost:8765');
   const [roomName, setRoomName] = useState(
     project ? `Table — ${project.name}` : 'Les Chroniques Pixel',
@@ -51,9 +80,10 @@ export function VttLobby({
   const [gmName, setGmName] = useState('Maître du Jeu');
   const [selectedMapId, setSelectedMapId] = useState<string>(projectMaps[0]?.id ?? '');
 
-  const [roomCode, setRoomCode] = useState('');
+  const [invitationInput, setInvitationInput] = useState('');
   const [joinPassword, setJoinPassword] = useState('');
   const [playerName, setPlayerName] = useState('Aventurier');
+  const [joinParseError, setJoinParseError] = useState<string | null>(null);
 
   return (
     <div className="flex flex-1 flex-col items-center justify-center overflow-y-auto bg-surface-950 p-6">
@@ -71,9 +101,24 @@ export function VttLobby({
           </p>
         </div>
 
-        {errorMessage && (
-          <div className="rounded-lg border border-rose-500/40 bg-rose-950/50 px-4 py-2.5 text-xs text-rose-200">
-            {errorMessage}
+        {hostStatusText && (
+          <div className="rounded-lg border border-amber-500/40 bg-amber-950/40 px-4 py-2 text-xs text-amber-200">
+            ⏳ {hostStatusText}
+          </div>
+        )}
+
+        {(errorMessage || joinParseError) && (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-rose-500/40 bg-rose-950/50 px-4 py-2.5 text-xs text-rose-200">
+            <span>{errorMessage ?? joinParseError}</span>
+            {canRetryLan && onRetryLan && (
+              <button
+                type="button"
+                onClick={onRetryLan}
+                className="pixel-btn pixel-btn-gold shrink-0 px-3 py-1 text-[11px] font-bold"
+              >
+                Réessayer en réseau local (LAN)
+              </button>
+            )}
           </div>
         )}
 
@@ -128,21 +173,23 @@ export function VttLobby({
           </button>
         </div>
 
-        {/* WebSocket Server Address */}
-        <div className="flex flex-col gap-2 rounded-lg border border-slate-800 bg-surface-900 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <label className="flex flex-1 items-center gap-3 text-xs text-slate-300">
-            <span className="shrink-0 font-semibold text-slate-400">Serveur WebSocket :</span>
-            <input
-              type="text"
-              value={serverUrl}
-              onChange={(e) => setServerUrl(e.target.value)}
-              className="w-full max-w-xs rounded border border-slate-700 bg-surface-800 px-2.5 py-1 font-mono text-xs text-white outline-none focus:border-indigo-500"
-            />
-          </label>
-          <span className="font-mono text-[11px] text-slate-500">
-            Hôte local : <code className="text-indigo-300">npm.cmd run vtt:server</code>
-          </span>
-        </div>
+        {/* Manual WebSocket Server Address (always available in Web mode, optional fallback in Electron) */}
+        {!hasEmbeddedHost && (
+          <div className="flex flex-col gap-2 rounded-lg border border-slate-800 bg-surface-900 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <label className="flex flex-1 items-center gap-3 text-xs text-slate-300">
+              <span className="shrink-0 font-semibold text-slate-400">Serveur WebSocket :</span>
+              <input
+                type="text"
+                value={serverUrl}
+                onChange={(e) => setServerUrl(e.target.value)}
+                className="w-full max-w-xs rounded border border-slate-700 bg-surface-800 px-2.5 py-1 font-mono text-xs text-white outline-none focus:border-indigo-500"
+              />
+            </label>
+            <span className="font-mono text-[11px] text-slate-500">
+              Hôte local : <code className="text-indigo-300">npm.cmd run vtt:server</code>
+            </span>
+          </div>
+        )}
 
         {/* Two columns: Host (GM) vs Join (Player) */}
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -152,6 +199,7 @@ export function VttLobby({
               e.preventDefault();
               onCreateRoom({
                 serverUrl,
+                hostExposure: hasEmbeddedHost ? hostExposure : undefined,
                 roomName,
                 password: gmPassword,
                 gmName,
@@ -163,12 +211,39 @@ export function VttLobby({
             <div className="flex items-center justify-between border-b-2 border-dnd-border pb-2">
               <h3 className="flex items-center gap-2 font-pixel text-xs font-bold text-dnd-gold">
                 <PixelCrownIcon size={16} />
-                <span>Créer un Salon (MJ)</span>
+                <span>{hasEmbeddedHost ? 'Héberger la partie (MJ)' : 'Créer un Salon (MJ)'}</span>
               </h3>
               <span className="pixel-badge-gm px-2 py-0.5 text-[10px] font-bold uppercase">
                 MJ
               </span>
             </div>
+
+            {hasEmbeddedHost && (
+              <div className="space-y-1.5">
+                <span className="block text-[11px] font-semibold text-slate-300">
+                  Mode d’hébergement intégré
+                </span>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {HOST_MODES.map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setHostExposure(opt.id)}
+                      className={`rounded border px-2 py-1.5 text-[10px] font-bold transition ${
+                        hostExposure === opt.id
+                          ? 'border-dnd-gold bg-amber-950/70 text-dnd-gold'
+                          : 'border-slate-700 bg-surface-800 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[10px] text-slate-400">
+                  {HOST_MODES.find((m) => m.id === hostExposure)?.hint}
+                </p>
+              </div>
+            )}
 
             <label className="block text-xs text-slate-400">
               Nom du salon
@@ -225,7 +300,11 @@ export function VttLobby({
               disabled={connecting}
               className="pixel-btn pixel-btn-gold w-full px-4 py-2 text-xs font-bold disabled:opacity-50"
             >
-              {connecting ? 'Connexion...' : 'Ouvrir le Salon (WebSocket)'}
+              {connecting
+                ? (hostStatusText ?? 'Connexion...')
+                : hasEmbeddedHost
+                  ? 'Démarrer le serveur & Ouvrir le Salon'
+                  : 'Ouvrir le Salon (WebSocket)'}
             </button>
           </form>
 
@@ -233,9 +312,17 @@ export function VttLobby({
           <form
             onSubmit={(e) => {
               e.preventDefault();
+              setJoinParseError(null);
+              const parsed = parseInvitation(invitationInput, serverUrl);
+              if (!parsed || !parsed.roomCode) {
+                setJoinParseError(
+                  'Code d’invitation invalide. Collez le lien complet (ex: mon-tunnel.trycloudflare.com#ABCD2345) ou un code salon.',
+                );
+                return;
+              }
               onJoinRoom({
-                serverUrl,
-                roomCode,
+                serverUrl: parsed.serverUrl,
+                roomCode: parsed.roomCode,
                 password: joinPassword,
                 playerName,
               });
@@ -253,14 +340,17 @@ export function VttLobby({
             </div>
 
             <label className="block text-xs text-slate-400">
-              Code d’invitation (6 caractères)
+              Code d’invitation (Internet, LAN ou code simple)
               <input
                 type="text"
-                value={roomCode}
-                onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-                placeholder="EX: K7M4P2"
+                value={invitationInput}
+                onChange={(e) => {
+                  setInvitationInput(e.target.value);
+                  setJoinParseError(null);
+                }}
+                placeholder="ex: vive-lune-42.trycloudflare.com#ABCD2345 ou K7M4P2"
                 required
-                className="mt-1 w-full rounded border border-slate-700 bg-surface-800 px-2.5 py-1.5 font-mono text-sm uppercase tracking-widest text-white outline-none focus:border-cyan-400"
+                className="mt-1 w-full rounded border border-slate-700 bg-surface-800 px-2.5 py-1.5 font-mono text-xs text-white outline-none focus:border-cyan-400"
               />
             </label>
 
@@ -288,9 +378,9 @@ export function VttLobby({
             </div>
 
             <p className="text-[11px] text-slate-500">
-              Astuce : ouvrez un second onglet du navigateur sur{' '}
-              <code className="text-slate-300">localhost:5173</code> pour rejoindre votre propre
-              salon en tant que Joueur !
+              Collez directement l’invitation envoyée par le MJ : le protocole{' '}
+              <code className="text-slate-300">wss://</code> est ajouté automatiquement pour
+              Cloudflare.
             </p>
 
             <button

@@ -13,6 +13,24 @@ import { rollDiceFormula } from './dice.js';
 import { validateVttClientMessage } from './validation.js';
 
 const MAX_PLAYER_MOVE_DISTANCE = 6;
+const DEFAULT_MAX_PARTICIPANTS = 8;
+const DEFAULT_MAX_JOIN_FAILURES_PER_MINUTE = 5;
+const JOIN_RATE_WINDOW_MS = 60_000;
+
+export type VttExposureMode = 'local' | 'lan' | 'public';
+
+export interface VttRoomManagerOptions {
+  rng?: () => number;
+  exposure?: VttExposureMode;
+  maxParticipants?: number;
+  maxJoinFailuresPerMinute?: number;
+}
+
+export interface VttMessageContext {
+  clientIp?: string;
+  isLocal?: boolean;
+  nowMs?: number;
+}
 
 interface InternalRoom {
   state: VttRoomState;
@@ -35,15 +53,30 @@ export interface RoomActionOutcome {
 
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
-function generateRoomCode(existing: Set<string>): string {
+function secureRandomIndex(maxExclusive: number): number {
+  const cryptoObj = globalThis.crypto;
+  if (cryptoObj && typeof cryptoObj.getRandomValues === 'function') {
+    const buf = new Uint32Array(1);
+    const limit = Math.floor(0x100000000 / maxExclusive) * maxExclusive;
+    let value = 0;
+    do {
+      cryptoObj.getRandomValues(buf);
+      value = buf[0]!;
+    } while (value >= limit);
+    return value % maxExclusive;
+  }
+  return Math.floor(Math.random() * maxExclusive);
+}
+
+function generateRoomCode(existing: Set<string>, length: number): string {
   for (let attempt = 0; attempt < 100; attempt += 1) {
     let code = '';
-    for (let i = 0; i < 6; i += 1) {
-      code += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)]!;
+    for (let i = 0; i < length; i += 1) {
+      code += CODE_CHARS[secureRandomIndex(CODE_CHARS.length)]!;
     }
     if (!existing.has(code)) return code;
   }
-  return `R${Date.now().toString(36).toUpperCase().slice(-5)}`;
+  return `R${Date.now().toString(36).toUpperCase().slice(-(length - 1))}`;
 }
 
 let seq = 0;
@@ -77,10 +110,49 @@ function revealAround(fog: number[], width: number, height: number, cx: number, 
  */
 export class VttRoomManager {
   private readonly rooms = new Map<string, InternalRoom>();
+  private readonly failedJoinsByIp = new Map<string, number[]>();
   private readonly rng: () => number;
+  private readonly exposure: VttExposureMode;
+  private readonly maxParticipants: number;
+  private readonly maxJoinFailuresPerMinute: number;
 
-  constructor(rng: () => number = Math.random) {
-    this.rng = rng;
+  constructor(rngOrOptions: (() => number) | VttRoomManagerOptions = Math.random) {
+    if (typeof rngOrOptions === 'function') {
+      this.rng = rngOrOptions;
+      this.exposure = 'local';
+      this.maxParticipants = DEFAULT_MAX_PARTICIPANTS;
+      this.maxJoinFailuresPerMinute = DEFAULT_MAX_JOIN_FAILURES_PER_MINUTE;
+    } else {
+      this.rng = rngOrOptions.rng ?? Math.random;
+      this.exposure = rngOrOptions.exposure ?? 'local';
+      this.maxParticipants = Math.max(2, rngOrOptions.maxParticipants ?? DEFAULT_MAX_PARTICIPANTS);
+      this.maxJoinFailuresPerMinute = Math.max(
+        1,
+        rngOrOptions.maxJoinFailuresPerMinute ?? DEFAULT_MAX_JOIN_FAILURES_PER_MINUTE,
+      );
+    }
+  }
+
+  getExposure(): VttExposureMode {
+    return this.exposure;
+  }
+
+  private checkJoinRateLimit(clientIp: string | undefined, nowMs: number): boolean {
+    if (!clientIp) return true;
+    const recent = (this.failedJoinsByIp.get(clientIp) ?? []).filter(
+      (ts) => nowMs - ts < JOIN_RATE_WINDOW_MS,
+    );
+    this.failedJoinsByIp.set(clientIp, recent);
+    return recent.length < this.maxJoinFailuresPerMinute;
+  }
+
+  private recordJoinFailure(clientIp: string | undefined, nowMs: number): void {
+    if (!clientIp) return;
+    const recent = (this.failedJoinsByIp.get(clientIp) ?? []).filter(
+      (ts) => nowMs - ts < JOIN_RATE_WINDOW_MS,
+    );
+    recent.push(nowMs);
+    this.failedJoinsByIp.set(clientIp, recent);
   }
 
   getRoomCodes(): string[] {
@@ -167,6 +239,7 @@ export class VttRoomManager {
     roomCode: string | null,
     participantId: string | null,
     rawMsg: VttClientMessage | unknown,
+    context?: VttMessageContext,
   ): RoomActionOutcome {
     const validated = validateVttClientMessage(rawMsg);
     if (!validated.ok) {
@@ -179,10 +252,10 @@ export class VttRoomManager {
     const msg = validated.msg;
 
     if (msg.type === 'create_room') {
-      return this.createRoom(msg);
+      return this.createRoom(msg, context);
     }
     if (msg.type === 'join_room') {
-      return this.joinRoom(msg);
+      return this.joinRoom(msg, context);
     }
 
     if (!roomCode || !participantId) {
@@ -278,8 +351,27 @@ export class VttRoomManager {
 
   private createRoom(
     msg: Extract<VttClientMessage, { type: 'create_room' }>,
+    context?: VttMessageContext,
   ): RoomActionOutcome {
-    const roomCode = generateRoomCode(new Set(this.rooms.keys()));
+    if (this.exposure === 'public') {
+      if (context?.isLocal === false) {
+        return {
+          ok: false,
+          errorCode: 'FORBIDDEN_REMOTE_CREATE',
+          errorMessage: 'Seul le MJ local peut créer un salon sur ce serveur public.',
+        };
+      }
+      if (this.rooms.size >= 1) {
+        return {
+          ok: false,
+          errorCode: 'ROOM_LIMIT_REACHED',
+          errorMessage: 'Ce serveur public héberge déjà un salon actif.',
+        };
+      }
+    }
+
+    const codeLength = this.exposure === 'public' ? 8 : 6;
+    const roomCode = generateRoomCode(new Set(this.rooms.keys()), codeLength);
     const gmId = nextId('gm');
     const gmName = msg.gmName.trim() || 'Maître du Jeu';
     const map = msg.initialMap;
@@ -348,10 +440,21 @@ export class VttRoomManager {
 
   private joinRoom(
     msg: Extract<VttClientMessage, { type: 'join_room' }>,
+    context?: VttMessageContext,
   ): RoomActionOutcome {
+    const nowMs = context?.nowMs ?? Date.now();
+    if (!this.checkJoinRateLimit(context?.clientIp, nowMs)) {
+      return {
+        ok: false,
+        errorCode: 'RATE_LIMITED',
+        errorMessage: 'Trop de tentatives échouées. Réessayez dans une minute.',
+      };
+    }
+
     const code = msg.roomCode.trim().toUpperCase();
     const room = this.rooms.get(code);
     if (!room) {
+      this.recordJoinFailure(context?.clientIp, nowMs);
       return {
         ok: false,
         errorCode: 'ROOM_NOT_FOUND',
@@ -359,6 +462,7 @@ export class VttRoomManager {
       };
     }
     if (room.password && room.password !== (msg.password?.trim() ?? '')) {
+      this.recordJoinFailure(context?.clientIp, nowMs);
       return {
         ok: false,
         errorCode: 'INVALID_PASSWORD',
@@ -366,7 +470,7 @@ export class VttRoomManager {
       };
     }
 
-    room.lastActivityMs = Date.now();
+    room.lastActivityMs = nowMs;
 
     // Reconnection via sessionToken reclaims the existing participant without duplicating tokens/sheets (Bug #10)
     if (msg.sessionToken) {
@@ -386,6 +490,14 @@ export class VttRoomManager {
           broadcastState: true,
         };
       }
+    }
+
+    if (room.state.participants.length >= this.maxParticipants) {
+      return {
+        ok: false,
+        errorCode: 'ROOM_FULL',
+        errorMessage: `Ce salon est complet (${this.maxParticipants} participants maximum).`,
+      };
     }
 
     const playerId = nextId('plr');

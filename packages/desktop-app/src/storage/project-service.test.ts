@@ -10,6 +10,13 @@ import {
 } from '@rpg-player/rpg-engine';
 import { MemoryStorageAdapter } from './adapter.js';
 import {
+  getRecoverableAutosave,
+  listAutosaves,
+  markAutosaveSessionClean,
+  restoreAutosave,
+  writeProjectAutosave,
+} from './autosave.js';
+import {
   createProject,
   loadMap,
   loadNarrative,
@@ -178,5 +185,60 @@ describe('project-service', () => {
     const finalOnDisk = await openProject(adapter);
     expect(finalOnDisk?.assets['hero_a']).toBeDefined();
     expect(finalOnDisk?.maps?.['map_a']).toBeDefined();
+  });
+
+  it('migrates legacy v0 project.json with automatic .bak-v0 backup and rejects corrupted maps cleanly (A2)', async () => {
+    const adapter = new MemoryStorageAdapter();
+    await adapter.pickProjectDirectory();
+    await adapter.writeText(
+      PROJECT_MANIFEST_FILENAME,
+      JSON.stringify({ id: 'old_rpg', name: 'Ancien Projet', assets: {} }),
+    );
+
+    const opened = await openProject(adapter);
+    expect(opened?.schemaVersion).toBe(1);
+    expect(opened?.defaultTileSize).toBe(32);
+    expect(await adapter.exists(`${PROJECT_MANIFEST_FILENAME}.bak-v0`)).toBe(true);
+
+    // Corrupted map throws explicit French error naming the file and missing field
+    await adapter.writeText('maps/foret.map.json', JSON.stringify({ schemaVersion: 2, id: 'foret' }));
+    await expect(
+      loadMap(adapter, {
+        id: 'foret',
+        name: 'Forêt',
+        width: 10,
+        height: 10,
+        tileSize: 32,
+        filePath: 'maps/foret.map.json',
+      }),
+    ).rejects.toThrow(/foret\.map\.json.*width/i);
+  });
+
+  it('rotates 5 autosave slots in .autosave/ and supports crash recovery (A2)', async () => {
+    const adapter = new MemoryStorageAdapter();
+    await adapter.pickProjectDirectory();
+    const manifest = await createProject(adapter, 'Projet Autosave', 32);
+
+    // Write 7 autosaves -> rotates within 5 slots
+    for (let i = 1; i <= 7; i += 1) {
+      await writeProjectAutosave(adapter, { ...manifest, name: `Projet v${i}` });
+    }
+    const entries = await listAutosaves(adapter);
+    expect(entries).toHaveLength(5);
+    expect(entries[0]?.projectName).toBe('Projet v7');
+
+    // Unclean exit leaves recoverable autosave
+    const recoverable = await getRecoverableAutosave(adapter);
+    expect(recoverable?.projectName).toBe('Projet v7');
+
+    // Restore writes manifest back & marks session clean
+    const restored = await restoreAutosave(adapter, recoverable!);
+    expect(restored.name).toBe('Projet v7');
+    expect(await getRecoverableAutosave(adapter)).toBeNull();
+
+    // Clean exit marker clears dirty flag
+    await writeProjectAutosave(adapter, { ...manifest, name: 'Projet v8' });
+    await markAutosaveSessionClean(adapter);
+    expect(await getRecoverableAutosave(adapter)).toBeNull();
   });
 });

@@ -22,7 +22,12 @@ import {
   type CombatSnapshot,
   type NarrativeStepState,
 } from '@rpg-player/rpg-engine';
-import { VttClient, VttRoomManager } from '@rpg-player/vtt-network';
+import {
+  formatInvitation,
+  VttClient,
+  VttRoomManager,
+  type VttConnectionStatus,
+} from '@rpg-player/vtt-network';
 import { loadMap, loadRpgDatabase } from '../../storage/project-service';
 import { loadScenarioBundle, type LoadedScenarioBundle } from '../../storage/scenario-loader';
 import { CombatOverlay } from '../rpg-engine/CombatOverlay';
@@ -81,6 +86,11 @@ export function VttWorkspace({ storage, project, onProjectLoaded }: VttWorkspace
   const [session, setSession] = useState<ActiveSession | null>(null);
   const [roomState, setRoomState] = useState<VttRoomState | null>(null);
   const [connecting, setConnecting] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<VttConnectionStatus>('disconnected');
+  const [hostStatusText, setHostStatusText] = useState<string | null>(null);
+  const [hostedInviteUrl, setHostedInviteUrl] = useState<string | null>(null);
+  const [lastHostForm, setLastHostForm] = useState<CreateRoomForm | null>(null);
+  const [canRetryLan, setCanRetryLan] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [activeScenario, setActiveScenario] = useState<LoadedScenarioBundle | null>(null);
   const [activeDialogue, setActiveDialogue] = useState<{
@@ -139,10 +149,30 @@ export function VttWorkspace({ storage, project, onProjectLoaded }: VttWorkspace
     };
   }, [storage, project?.id]);
 
-  // Cleanup WebSocket on unmount
+  // Subscribe to Electron embedded VTT Host & Cloudflare tunnel status + cleanup on unmount
   useEffect(() => {
+    const unsubscribeHost = window.rpgPlayerVttHost?.onStatus((status) => {
+      if (status.tunnel.state === 'starting') {
+        setHostStatusText('Ouverture du tunnel Cloudflare…');
+      } else if (status.tunnel.state === 'ready') {
+        setHostStatusText(null);
+        setHostedInviteUrl(status.tunnel.publicUrl);
+      } else if (status.tunnel.state === 'error') {
+        setHostStatusText(null);
+        setErrorMessage(status.tunnel.message);
+        setCanRetryLan(true);
+      } else if (status.serverRunning && status.exposure === 'lan' && status.lanUrls[0]) {
+        setHostStatusText(null);
+        setHostedInviteUrl(status.lanUrls[0]);
+      } else if (status.serverRunning) {
+        setHostStatusText(null);
+      }
+    });
+
     return () => {
+      unsubscribeHost?.();
       clientRef.current?.disconnect();
+      void window.rpgPlayerVttHost?.stop();
     };
   }, []);
 
@@ -321,11 +351,33 @@ export function VttWorkspace({ storage, project, onProjectLoaded }: VttWorkspace
   async function handleCreateRoom(form: CreateRoomForm) {
     setConnecting(true);
     setErrorMessage(null);
+    setCanRetryLan(false);
+    setHostedInviteUrl(null);
+    setLastHostForm(form);
     try {
       clientRef.current?.disconnect();
       clientRef.current = null;
+
+      let targetWsUrl = form.serverUrl;
+      if (form.hostExposure && window.rpgPlayerVttHost) {
+        setHostStatusText(
+          form.hostExposure === 'public'
+            ? 'Démarrage du serveur local puis ouverture du tunnel Cloudflare…'
+            : 'Démarrage du serveur VTT intégré…',
+        );
+        const hosted = await window.rpgPlayerVttHost.start({ exposure: form.hostExposure });
+        targetWsUrl = hosted.localUrl;
+        if (hosted.publicUrl) {
+          setHostedInviteUrl(hosted.publicUrl);
+        } else if (hosted.lanUrls[0]) {
+          setHostedInviteUrl(hosted.lanUrls[0]);
+        }
+        setHostStatusText(null);
+      }
+
       const initialMap = await resolveMapById(form.selectedMapId);
       const client = new VttClient({
+        onStatusChange: (nextStatus) => setConnectionStatus(nextStatus),
         onMessage: (serverMsg) => {
           if (serverMsg.type === 'room_joined') {
             setSession({
@@ -348,7 +400,7 @@ export function VttWorkspace({ storage, project, onProjectLoaded }: VttWorkspace
         onError: (reason) => setErrorMessage(reason),
       });
       clientRef.current = client;
-      await client.connect(form.serverUrl);
+      await client.connect(targetWsUrl);
       client.send({
         type: 'create_room',
         roomName: form.roomName,
@@ -357,6 +409,10 @@ export function VttWorkspace({ storage, project, onProjectLoaded }: VttWorkspace
         initialMap,
       });
     } catch (error) {
+      setHostStatusText(null);
+      if (form.hostExposure === 'public') {
+        setCanRetryLan(true);
+      }
       setErrorMessage(error instanceof Error ? error.message : 'Connexion impossible.');
     } finally {
       setConnecting(false);
@@ -366,10 +422,12 @@ export function VttWorkspace({ storage, project, onProjectLoaded }: VttWorkspace
   async function handleJoinRoom(form: JoinRoomForm) {
     setConnecting(true);
     setErrorMessage(null);
+    setCanRetryLan(false);
     try {
       clientRef.current?.disconnect();
       clientRef.current = null;
       const client = new VttClient({
+        onStatusChange: (nextStatus) => setConnectionStatus(nextStatus),
         onMessage: (serverMsg) => {
           if (serverMsg.type === 'room_joined') {
             setSession({
@@ -852,6 +910,10 @@ export function VttWorkspace({ storage, project, onProjectLoaded }: VttWorkspace
     clientRef.current?.disconnect();
     clientRef.current = null;
     localManagerRef.current = null;
+    void window.rpgPlayerVttHost?.stop();
+    setHostedInviteUrl(null);
+    setHostStatusText(null);
+    setConnectionStatus('disconnected');
     setSession(null);
     setRoomState(null);
     setSelectedTokenId(null);
@@ -976,7 +1038,14 @@ export function VttWorkspace({ storage, project, onProjectLoaded }: VttWorkspace
       <VttLobby
         project={project}
         connecting={connecting}
+        hostStatusText={hostStatusText}
         errorMessage={errorMessage}
+        canRetryLan={canRetryLan}
+        onRetryLan={() => {
+          if (lastHostForm) {
+            void handleCreateRoom({ ...lastHostForm, hostExposure: 'lan' });
+          }
+        }}
         onCreateRoom={(form) => void handleCreateRoom(form)}
         onJoinRoom={(form) => void handleJoinRoom(form)}
         onStartLocalDemo={(gm, plr, mapId) => void handleStartLocalDemo(gm, plr, mapId)}
@@ -1017,15 +1086,35 @@ export function VttWorkspace({ storage, project, onProjectLoaded }: VttWorkspace
           <button
             type="button"
             onClick={() => {
-              void navigator.clipboard?.writeText(roomState.roomCode);
+              const inviteText = hostedInviteUrl
+                ? formatInvitation(hostedInviteUrl, roomState.roomCode)
+                : roomState.roomCode;
+              void navigator.clipboard?.writeText(inviteText);
               setCopiedCode(true);
               setTimeout(() => setCopiedCode(false), 1500);
             }}
             className="pixel-btn px-2 py-0.5 font-mono text-[11px] text-dnd-gold"
-            title="Copier le code d’invitation"
+            title={
+              hostedInviteUrl
+                ? 'Copier le code d’invitation (ce lien change à chaque partie)'
+                : 'Copier le code d’invitation'
+            }
           >
-            Code : {roomState.roomCode} {copiedCode ? '✓' : '⊞'}
+            {hostedInviteUrl
+              ? `Invitation : ${formatInvitation(hostedInviteUrl, roomState.roomCode)}`
+              : `Code : ${roomState.roomCode}`}{' '}
+            {copiedCode ? '✓' : '⊞'}
           </button>
+          {hostedInviteUrl && (
+            <span className="text-[10px] italic text-amber-300/80">
+              (Ce lien change à chaque partie)
+            </span>
+          )}
+          {session.mode === 'websocket' && connectionStatus === 'reconnecting' && (
+            <span className="rounded border border-amber-500/50 bg-amber-950/70 px-2 py-0.5 font-mono text-[10px] font-bold text-amber-200">
+              ↻ Reconnexion…
+            </span>
+          )}
           <span className="text-[11px] text-dnd-muted">
             {roomState.participants.filter((p) => p.connected).length} connecté(s)
           </span>

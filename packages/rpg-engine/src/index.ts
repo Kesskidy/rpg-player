@@ -8,6 +8,7 @@ export * from './inventory.js';
 export * from './narrative-interpreter.js';
 export * from './combat.js';
 export * from './combat-strategies.js';
+export * from './project-validator.js';
 export * from './texture-registry.js';
 export * from './pixi-viewport.js';
 export * from './pixi-vtt-viewport.js';

@@ -1,10 +1,14 @@
 import {
   MAP_SCHEMA_VERSION,
+  migrateAndValidateProjectManifest,
   NARRATIVE_SCHEMA_VERSION,
   PROJECT_DIRS,
   PROJECT_MANIFEST_FILENAME,
   PROJECT_SCHEMA_VERSION,
   RPG_DATABASE_SCHEMA_VERSION,
+  validateNarrativeGraphPayload,
+  validateRpgDatabasePayload,
+  validateTileMapPayload,
   type AssetMeta,
   type MapMeta,
   type NarrativeGraph,
@@ -81,19 +85,34 @@ export async function openProject(
     return null;
   }
   const raw = await adapter.readText(PROJECT_MANIFEST_FILENAME);
-  const parsed = JSON.parse(raw) as ProjectManifest;
-  if (parsed.schemaVersion !== PROJECT_SCHEMA_VERSION) {
-    throw new Error(
-      `Version de projet non supportée : ${String(parsed.schemaVersion)} (attendu: ${PROJECT_SCHEMA_VERSION})`,
-    );
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error(`Le fichier ${PROJECT_MANIFEST_FILENAME} est corrompu (JSON invalide).`);
   }
-  return {
-    ...parsed,
-    assets: parsed.assets ?? {},
-    maps: parsed.maps ?? {},
-    narratives: parsed.narratives ?? {},
-    databasePath: parsed.databasePath ?? RPG_DATABASE_FILENAME,
+
+  const migrated = migrateAndValidateProjectManifest(parsed, PROJECT_MANIFEST_FILENAME);
+  if (!migrated.ok) {
+    throw new Error(migrated.error);
+  }
+
+  const normalized: ProjectManifest = {
+    ...migrated.manifest,
+    assets: migrated.manifest.assets ?? {},
+    maps: migrated.manifest.maps ?? {},
+    narratives: migrated.manifest.narratives ?? {},
+    databasePath: migrated.manifest.databasePath ?? RPG_DATABASE_FILENAME,
   };
+
+  // Automatic backup (`project.json.bak-v<n>`) before saving a migrated manifest (A2)
+  if (migrated.migratedFromVersion !== null) {
+    const backupName = `${PROJECT_MANIFEST_FILENAME}.bak-v${migrated.migratedFromVersion}`;
+    await adapter.writeText(backupName, raw);
+    await adapter.writeText(PROJECT_MANIFEST_FILENAME, JSON.stringify(normalized, null, 2));
+  }
+
+  return normalized;
 }
 
 const manifestLocks = new WeakMap<ProjectStorageAdapter, Promise<unknown>>();
@@ -241,7 +260,17 @@ export async function loadMap(
   meta: MapMeta,
 ): Promise<TileMapData> {
   const raw = await adapter.readText(meta.filePath);
-  return normalizeTileMapData(JSON.parse(raw));
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error(`La map "${meta.filePath}" est invalide : JSON corrompu.`);
+  }
+  const validated = validateTileMapPayload(parsed, meta.filePath);
+  if (!validated.ok) {
+    throw new Error(validated.error);
+  }
+  return normalizeTileMapData(validated.data);
 }
 
 export interface SaveNarrativeResult {
@@ -287,11 +316,17 @@ export async function loadNarrative(
   meta: NarrativeMeta,
 ): Promise<NarrativeGraph> {
   const raw = await adapter.readText(meta.filePath);
-  const parsed = JSON.parse(raw) as NarrativeGraph;
-  if (parsed.schemaVersion !== NARRATIVE_SCHEMA_VERSION) {
-    throw new Error(`Version de graphe narratif non supportée : ${String(parsed.schemaVersion)}`);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error(`Le graphe narratif "${meta.filePath}" est invalide : JSON corrompu.`);
   }
-  return parsed;
+  const validated = validateNarrativeGraphPayload(parsed, meta.filePath);
+  if (!validated.ok) {
+    throw new Error(validated.error);
+  }
+  return validated.data;
 }
 
 export async function saveRpgDatabase(
@@ -321,9 +356,15 @@ export async function loadRpgDatabase(
     return null;
   }
   const raw = await adapter.readText(dbPath);
-  const parsed = JSON.parse(raw) as RpgDatabase;
-  if (parsed.schemaVersion !== RPG_DATABASE_SCHEMA_VERSION) {
-    throw new Error(`Version de base RPG non supportée : ${String(parsed.schemaVersion)}`);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error(`La base RPG "${dbPath}" est invalide : JSON corrompu.`);
   }
-  return parsed;
+  const validated = validateRpgDatabasePayload(parsed, dbPath);
+  if (!validated.ok) {
+    throw new Error(validated.error);
+  }
+  return validated.data;
 }

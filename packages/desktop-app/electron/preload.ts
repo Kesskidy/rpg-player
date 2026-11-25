@@ -35,3 +35,55 @@ const bridge: ElectronProjectFsBridge = {
 };
 
 contextBridge.exposeInMainWorld('rpgPlayerFs', bridge);
+
+export interface ElectronVttHostBridge {
+  start: (options: { exposure: 'local' | 'lan' | 'public' }) => Promise<{
+    exposure: 'local' | 'lan' | 'public';
+    localUrl: string;
+    publicUrl?: string;
+    lanUrls: string[];
+    port: number;
+  }>;
+  stop: () => Promise<void>;
+  getStatus: () => Promise<{
+    serverRunning: boolean;
+    exposure: 'local' | 'lan' | 'public' | null;
+    localUrl: string | null;
+    lanUrls: string[];
+    tunnel:
+      | { state: 'idle' }
+      | { state: 'starting' }
+      | { state: 'ready'; publicUrl: string }
+      | { state: 'error'; message: string };
+  }>;
+  onStatus: (
+    listener: (status: {
+      serverRunning: boolean;
+      exposure: 'local' | 'lan' | 'public' | null;
+      localUrl: string | null;
+      lanUrls: string[];
+      tunnel:
+        | { state: 'idle' }
+        | { state: 'starting' }
+        | { state: 'ready'; publicUrl: string }
+        | { state: 'error'; message: string };
+    }) => void,
+  ) => () => void;
+}
+
+const vttHostBridge: ElectronVttHostBridge = {
+  start: (options) => ipcRenderer.invoke('vtt:host:start', options),
+  stop: () => ipcRenderer.invoke('vtt:host:stop'),
+  getStatus: () => ipcRenderer.invoke('vtt:host:getStatus'),
+  onStatus: (listener) => {
+    const handler = (_event: Electron.IpcRendererEvent, status: Parameters<typeof listener>[0]) => {
+      listener(status);
+    };
+    ipcRenderer.on('vtt:host:status', handler);
+    return () => {
+      ipcRenderer.removeListener('vtt:host:status', handler);
+    };
+  },
+};
+
+contextBridge.exposeInMainWorld('rpgPlayerVttHost', vttHostBridge);

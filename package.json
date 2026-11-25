@@ -14,6 +14,7 @@
     "vtt:server": "npm run build -w @rpg-player/core-types && npm run build -w @rpg-player/vtt-network && npm run start -w @rpg-player/vtt-network",
     "demo:generate": "npm run build:core && tsc -p scripts/demo-pack/tsconfig.json && node scripts/demo-pack/dist/generate.js",
     "scenario:generate": "npm run build:core && tsc -p scripts/scenarios/quete-taverne/tsconfig.json && node scripts/scenarios/quete-taverne/dist/scenarios/quete-taverne/generate.js",
+    "fetch:cloudflared": "node scripts/fetch-cloudflared.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },

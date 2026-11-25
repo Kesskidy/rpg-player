@@ -1,7 +1,14 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, protocol } from 'electron';
+import type { VttExposureMode } from '@rpg-player/vtt-network/server';
 import * as fsSync from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import {
+  getHostedVttStatus,
+  startHostedVtt,
+  stopHostedVtt,
+  type HostedVttStatusEvent,
+} from './vtt-host';
 
 // Register a privileged custom scheme so Vite ES modules, PixiJS v8 dynamic chunks,
 // and WebGL/ImageBitmap work identically to http://localhost without file:// CORS restrictions.
@@ -266,6 +273,27 @@ function registerProjectIpcHandlers(): void {
     const buffer = await fs.readFile(fullPath);
     return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
   });
+
+  // Embedded VTT Host & Cloudflare Quick Tunnel IPC bridge (B3)
+  const forwardHostStatus = (status: HostedVttStatusEvent) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('vtt:host:status', status);
+    }
+  };
+
+  ipcMain.handle(
+    'vtt:host:start',
+    async (_event, payload: { exposure?: VttExposureMode } | undefined) => {
+      const exposure: VttExposureMode = payload?.exposure ?? 'local';
+      return startHostedVtt(exposure, forwardHostStatus);
+    },
+  );
+
+  ipcMain.handle('vtt:host:stop', async () => {
+    await stopHostedVtt(forwardHostStatus);
+  });
+
+  ipcMain.handle('vtt:host:getStatus', () => getHostedVttStatus());
 }
 
 function createMainWindow(): void {
@@ -319,7 +347,12 @@ app.whenReady().then(() => {
   });
 });
 
+app.on('before-quit', () => {
+  void stopHostedVtt();
+});
+
 app.on('window-all-closed', () => {
+  void stopHostedVtt();
   if (process.platform !== 'darwin') {
     app.quit();
   }
